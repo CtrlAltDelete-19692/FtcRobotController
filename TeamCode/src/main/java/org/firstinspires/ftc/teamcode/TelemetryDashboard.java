@@ -24,20 +24,12 @@ public class TelemetryDashboard {
     }
 
     public void update(Drive drive) { // Test: Does telemetry work? Try debug mode. Audio?
-        Orientation angles = hw.imu.getAngularOrientation(
-                AxesReference.INTRINSIC,
-                AxesOrder.ZYX,
-                AngleUnit.DEGREES
-        );
-        double headingDeg = angles.firstAngle;
-
         telemetry.addData("Drive Mode", drive.getDriveMode());
+
+        double headingDeg = hw.imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
         telemetry.addData("Heading", "%.1f deg", headingDeg);
 
         if (debugEnabled) {
-            telemetry.addData("Status", hw.imu.getSystemStatus().toString());
-            telemetry.addData("Calib", hw.imu.getCalibrationStatus().toString());
-            
             double[] p = drive.getWheelPowers();
             telemetry.addData("LF / RF", "%.2f / %.2f", p[0], p[1]);
             telemetry.addData("LB / RB", "%.2f / %.2f", p[2], p[3]);

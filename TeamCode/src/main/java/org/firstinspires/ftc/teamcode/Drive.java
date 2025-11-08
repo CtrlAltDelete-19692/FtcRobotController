@@ -37,13 +37,14 @@ public class Drive {
             throw new IllegalStateException("Drive.setup(Hardware) must be called before update().");
         }
     
-        //Reset heading - center Logitech button is ps button
+        // Reset heading - center Logitech button is ps button
         boolean psPressed = gamepad.ps;
         if (psPressed && !psPressedLast) {
-            hw.imu.initialize(hw.imuParams);
+            hw.imu.resetYaw();
         }
         psPressedLast = psPressed;
-        
+
+
         // Drive Mode
         boolean selectPressed = gamepad.back || gamepad.share;
         if (selectPressed && !selectPressedLast) {
@@ -81,20 +82,13 @@ public class Drive {
         double forward = ly;
     
         if (driveMode == DriveMode.FIELD_CENTRIC) { // Test: Field vs Manual modes
-            // Field-centric: rotate the (strafe, forward) vector by -heading
-            Orientation angles = hw.imu.getAngularOrientation(
-                    AxesReference.INTRINSIC,
-                    AxesOrder.ZYX,
-                    AngleUnit.DEGREES
-            );
+            double headingRad = -hw.imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.RADIANS); // Test: is this backwards?
     
-            double headingRad = -Math.toRadians(angles.firstAngle); // Test: is this backwards?
-    
-            double tempX = strafe  * Math.cos(headingRad) - forward * Math.sin(headingRad);
-            double tempY = strafe  * Math.sin(headingRad) + forward * Math.cos(headingRad);
+            double tempX = strafe * Math.cos(headingRad) - forward * Math.sin(headingRad);
+            double tempY = strafe * Math.sin(headingRad) + forward * Math.cos(headingRad);
     
             // Counteract imperfect strafing
-            strafe  = tempX * STRAFE_CORRECTION;
+            strafe = tempX * STRAFE_CORRECTION;
             forward = tempY;
         }
     

@@ -5,7 +5,9 @@ import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.VoltageSensor;
-import com.qualcomm.hardware.bosch.BNO055IMU;
+import com.qualcomm.robotcore.hardware.IMU;
+import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 
 
 public class Hardware {
@@ -20,8 +22,8 @@ public class Hardware {
     
     public DcMotorEx Launcher;
     
-    public BNO055IMU imu;
-    public BNO055IMU.Parameters imuParams;
+    public IMU imu;
+    public IMU.Parameters imuParams;
 
     public VoltageSensor voltageSensor;
 
@@ -57,10 +59,12 @@ public class Hardware {
         Launcher.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         Launcher.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
 
-        imu = hardwareMap.get(BNO055IMU.class, "imu");
-        imuParams = new BNO055IMU.Parameters();
-        imuParams.angleUnit = BNO055IMU.AngleUnit.DEGREES;
-        imuParams.mode = BNO055IMU.SensorMode.IMU;
+        imu = hardwareMap.get(IMU.class, "imu");
+        RevHubOrientationOnRobot orientationOnRobot = new RevHubOrientationOnRobot(
+            RevHubOrientationOnRobot.LogoFacingDirection.FORWARD, // TODO & Test: Update according to actual orientation!
+            RevHubOrientationOnRobot.UsbFacingDirection.UP
+        );
+        imuParams = new IMU.Parameters(orientationOnRobot);
         imu.initialize(imuParams);
 
         voltageSensor = hardwareMap.voltageSensor.iterator().next();
