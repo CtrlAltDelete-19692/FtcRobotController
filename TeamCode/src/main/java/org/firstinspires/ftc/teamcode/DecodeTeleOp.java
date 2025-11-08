@@ -6,10 +6,6 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 @TeleOp(name = "DecodeTeleOp")
 
 public class DecodeTeleOp extends LinearOpMode {
-    
-    private Hardware hw;
-    private Drive drive;
-    private TelemetryDashboard dashboard;
 
     private static final double INTAKE_POWER = 1.0; // Between 0 and 1
     private static final double LOADER_POWER = 0.5; // Between 0 and 1
@@ -19,13 +15,13 @@ public class DecodeTeleOp extends LinearOpMode {
 
     @Override
     public void runOpMode() {
-        hw = new Hardware();
+        Hardware hw = new Hardware();
         hw.setup(hardwareMap);
         
-        drive = new Drive();
+        Drive drive = new Drive();
         drive.setup(hw);
         
-        dashboard = new TelemetryDashboard(telemetry, hw);
+        TelemetryDashboard dashboard = new TelemetryDashboard(telemetry, hw);
 
         waitForStart();
         

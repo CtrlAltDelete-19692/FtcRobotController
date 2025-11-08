@@ -11,13 +11,13 @@ import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 public class Drive {
     private Hardware hw;
 
-    enum DriveMode { FIELD_CENTRIC, MANUAL }
+    public enum DriveMode { FIELD_CENTRIC, MANUAL }
     DriveMode driveMode = DriveMode.FIELD_CENTRIC;
     
     private static final double BASE_SPEED_LIMIT = 0.6;
     private static final double SLOW_MODE_FACTOR = 0.5;   // right bumper
     private static final double TURBO_EXTRA_FACTOR = 0.4;   // left trigger
-    private static final double STICK_DEADZONE = 0.05;
+    private static final double STICK_DEAD_ZONE = 0.05;
     private static final double STRAFE_CORRECTION = 1.1;
 
     double LFM = 0;

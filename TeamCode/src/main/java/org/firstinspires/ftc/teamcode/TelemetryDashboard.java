@@ -1,13 +1,10 @@
 package org.firstinspires.ftc.teamcode;
 
-import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.robotcore.external.navigation.Orientation;
 import org.firstinspires.ftc.robotcore.external.navigation.AxesReference;
 import org.firstinspires.ftc.robotcore.external.navigation.AxesOrder;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
-import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-
 
 public class TelemetryDashboard {
 
@@ -24,14 +21,6 @@ public class TelemetryDashboard {
         this.hw = hardware;
 
         telemetry.setMsTransmissionInterval(50);
-    }
-
-    public void setDebugEnabled(boolean enabled) {
-        this.debugEnabled = enabled;
-    }
-
-    public void setSpeechEnabled(boolean enabled) {
-        this.speechEnabled = enabled;
     }
 
     public void update(Drive drive) { // Test: Does telemetry work? Try debug mode. Audio?
