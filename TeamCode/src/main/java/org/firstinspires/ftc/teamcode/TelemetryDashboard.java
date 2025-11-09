@@ -20,12 +20,13 @@ public class TelemetryDashboard {
         telemetry.setMsTransmissionInterval(50);
     }
 
-    public void update(Drive drive, double distance) { // Test: Does telemetry work? Try debug mode. Audio?
+    public void update(Drive drive, double launcherVelocity, double distance) { // Test: Does telemetry work? Try debug mode. Audio?
         telemetry.addData("Drive Mode", drive.getDriveMode());
 
         double headingDeg = hw.imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
         telemetry.addData("Heading", "%.1f deg", headingDeg);
-        telemetry.addData("Launcher Speed", hw.Launcher.getVelocity()); // Test: Ensure launcher speeds work against tag distance
+        telemetry.addData("Launcher Set Vel", launcherVelocity);
+        telemetry.addData("Launcher Act Vel", hw.Launcher.getVelocity()); // Test: Ensure launcher speeds work against tag distance
         telemetry.addData("Distance", distance); // Test: for correctness
 
         if (debugEnabled) {

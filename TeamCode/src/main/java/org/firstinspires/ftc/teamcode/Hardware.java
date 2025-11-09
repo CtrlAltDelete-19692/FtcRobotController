@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.hardware.limelightvision.Limelight3A;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
@@ -45,22 +46,22 @@ public class Hardware {
         RightBackMotor.setDirection(DcMotor.Direction.FORWARD);
         RightBackMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
-        Launcher.setVelocity(0);
         
-        IntakeServo = hardwareMap.get(CRServo.class, "PickupServo"); // TODO: Rename to IntakeServo
-        IntakeServo.setDirection(CRServo.Direction.REVERSE); // Test: is this backwards?
-        IntakeServo.setPower(0);
+//        IntakeServo = hardwareMap.get(CRServo.class, "IntakeServo");
+//        IntakeServo.setDirection(CRServo.Direction.REVERSE); // Test: is this backwards?
+//        IntakeServo.setPower(0);
         
-        LoaderServo = hardwareMap.get(CRServo.class, "PushServo"); // TODO: Rename to LoaderServo
-        LoaderServo.setDirection(CRServo.Direction.FORWARD); // Test: is this backwards?
+        LoaderServo = hardwareMap.get(CRServo.class, "LoaderServo");
+        LoaderServo.setDirection(CRServo.Direction.REVERSE);
         LoaderServo.setPower(0);
         
         Launcher = hardwareMap.get(DcMotorEx.class, "LaunchMotor");
         Launcher.setDirection(DcMotor.Direction.FORWARD);
         Launcher.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         Launcher.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+        Launcher.setVelocity(0);
 
-        limelight = hardwareMap.get(Limelight3A.class, "Limelight");
+        //limelight = hardwareMap.get(Limelight3A.class, "Limelight");
 
         imu = hardwareMap.get(IMU.class, "imu");
         RevHubOrientationOnRobot orientationOnRobot = new RevHubOrientationOnRobot(
