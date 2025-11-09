@@ -1,9 +1,6 @@
 package org.firstinspires.ftc.teamcode;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
-import org.firstinspires.ftc.robotcore.external.navigation.Orientation;
-import org.firstinspires.ftc.robotcore.external.navigation.AxesReference;
-import org.firstinspires.ftc.robotcore.external.navigation.AxesOrder;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 
 public class TelemetryDashboard {
@@ -23,11 +20,13 @@ public class TelemetryDashboard {
         telemetry.setMsTransmissionInterval(50);
     }
 
-    public void update(Drive drive) { // Test: Does telemetry work? Try debug mode. Audio?
+    public void update(Drive drive, double distance) { // Test: Does telemetry work? Try debug mode. Audio?
         telemetry.addData("Drive Mode", drive.getDriveMode());
 
         double headingDeg = hw.imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
         telemetry.addData("Heading", "%.1f deg", headingDeg);
+        telemetry.addData("Launcher Speed", hw.Launcher.getVelocity()); // Test: Ensure launcher speeds work against tag distance
+        telemetry.addData("Distance", distance); // Test: for correctness
 
         if (debugEnabled) {
             double[] p = drive.getWheelPowers();

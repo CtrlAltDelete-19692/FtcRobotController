@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode;
 
+import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
@@ -7,8 +8,6 @@ import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.VoltageSensor;
 import com.qualcomm.robotcore.hardware.IMU;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
-import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
-
 
 public class Hardware {
 
@@ -21,7 +20,9 @@ public class Hardware {
     public CRServo LoaderServo;
     
     public DcMotorEx Launcher;
-    
+
+    public Limelight3A limelight;
+
     public IMU imu;
     public IMU.Parameters imuParams;
 
@@ -58,6 +59,8 @@ public class Hardware {
         Launcher.setDirection(DcMotor.Direction.FORWARD);
         Launcher.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         Launcher.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+
+        limelight = hardwareMap.get(Limelight3A.class, "Limelight");
 
         imu = hardwareMap.get(IMU.class, "imu");
         RevHubOrientationOnRobot orientationOnRobot = new RevHubOrientationOnRobot(
