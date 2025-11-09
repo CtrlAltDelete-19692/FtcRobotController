@@ -12,15 +12,15 @@ import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 
 public class Hardware {
 
-    public DcMotor RightFrontMotor;
-    public DcMotor RightBackMotor;
-    public DcMotor LeftFrontMotor;
-    public DcMotor LeftBackMotor;
+    public DcMotor rightFrontMotor;
+    public DcMotor rightBackMotor;
+    public DcMotor leftFrontMotor;
+    public DcMotor leftBackMotor;
     
-    public CRServo IntakeServo;
-    public CRServo LoaderServo;
+    public CRServo intake;
+    public CRServo loader;
     
-    public DcMotorEx Launcher;
+    public DcMotorEx launcher;
 
     public Limelight3A limelight;
 
@@ -30,36 +30,40 @@ public class Hardware {
     public VoltageSensor voltageSensor;
 
     public void setup(HardwareMap hardwareMap) {
-        LeftFrontMotor  = hardwareMap.get(DcMotor.class, "LFM");
-        LeftFrontMotor.setDirection(DcMotor.Direction.REVERSE);
-        LeftFrontMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        leftFrontMotor = hardwareMap.get(DcMotor.class, "LFM");
+        leftFrontMotor.setDirection(DcMotor.Direction.REVERSE);
+        leftFrontMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         
-        LeftBackMotor   = hardwareMap.get(DcMotor.class, "LBM");
-        LeftBackMotor.setDirection(DcMotor.Direction.REVERSE);
-        LeftBackMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        leftBackMotor  = hardwareMap.get(DcMotor.class, "LBM");
+        leftBackMotor.setDirection(DcMotor.Direction.REVERSE);
+        leftBackMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         
-        RightFrontMotor = hardwareMap.get(DcMotor.class, "RFM");
-        RightFrontMotor.setDirection(DcMotor.Direction.FORWARD);
-        RightFrontMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        rightFrontMotor = hardwareMap.get(DcMotor.class, "RFM");
+        rightFrontMotor.setDirection(DcMotor.Direction.FORWARD);
+        rightFrontMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         
-        RightBackMotor  = hardwareMap.get(DcMotor.class, "RBM");
-        RightBackMotor.setDirection(DcMotor.Direction.FORWARD);
-        RightBackMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        rightBackMotor = hardwareMap.get(DcMotor.class, "RBM");
+        rightBackMotor.setDirection(DcMotor.Direction.FORWARD);
+        rightBackMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
         
-//        IntakeServo = hardwareMap.get(CRServo.class, "IntakeServo");
-//        IntakeServo.setDirection(CRServo.Direction.REVERSE); // Test: is this backwards?
-//        IntakeServo.setPower(0);
+        intake = hardwareMap.get(CRServo.class, "Intake");
+        if (intake != null) {
+            intake.setDirection(CRServo.Direction.REVERSE); // Test: is this backwards?
+            intake.setPower(0);
+        }
         
-        LoaderServo = hardwareMap.get(CRServo.class, "LoaderServo");
-        LoaderServo.setDirection(CRServo.Direction.REVERSE);
-        LoaderServo.setPower(0);
+        loader = hardwareMap.get(CRServo.class, "Loader");
+        if (loader != null) {
+            loader.setDirection(CRServo.Direction.REVERSE);
+            loader.setPower(0);
+        }
         
-        Launcher = hardwareMap.get(DcMotorEx.class, "LaunchMotor");
-        Launcher.setDirection(DcMotor.Direction.FORWARD);
-        Launcher.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        Launcher.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
-        Launcher.setVelocity(0);
+        launcher = hardwareMap.get(DcMotorEx.class, "Launcher");
+        launcher.setDirection(DcMotor.Direction.FORWARD);
+        launcher.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        launcher.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+        launcher.setVelocity(0);
 
         //limelight = hardwareMap.get(Limelight3A.class, "Limelight");
 

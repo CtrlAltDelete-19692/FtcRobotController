@@ -25,8 +25,7 @@ public class TelemetryDashboard {
 
         double headingDeg = hw.imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
         telemetry.addData("Heading", "%.1f deg", headingDeg);
-        telemetry.addData("Launcher Set Vel", launcherVelocity);
-        telemetry.addData("Launcher Act Vel", hw.Launcher.getVelocity()); // Test: Ensure launcher speeds work against tag distance
+        telemetry.addData("Launcher Velocity", "% / %", launcherVelocity, hw.launcher.getVelocity()); // Test: Ensure launcher speeds work against tag distance
         telemetry.addData("Distance", distance); // Test: for correctness
 
         if (debugEnabled) {

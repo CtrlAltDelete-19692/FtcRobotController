@@ -111,10 +111,10 @@ public class Drive {
         LBM = Range.clip(LBM / max, -speedLimit, speedLimit);
         RBM = Range.clip(RBM / max, -speedLimit, speedLimit);
         
-        hw.LeftFrontMotor.setPower(LFM);
-        hw.RightFrontMotor.setPower(RFM);
-        hw.LeftBackMotor.setPower(LBM);
-        hw.RightBackMotor.setPower(RBM);
+        hw.leftFrontMotor.setPower(LFM);
+        hw.rightFrontMotor.setPower(RFM);
+        hw.leftBackMotor.setPower(LBM);
+        hw.rightBackMotor.setPower(RBM);
     }
     
     public DriveMode getDriveMode() {
