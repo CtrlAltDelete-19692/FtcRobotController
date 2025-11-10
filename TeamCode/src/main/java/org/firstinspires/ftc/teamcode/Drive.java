@@ -29,22 +29,29 @@ public class Drive {
     private boolean psPressedLast = false;
     private boolean selectPressedLast = false;
 
-    public void setup(Hardware hardware) {
-        hw = hardware;
+    public Drive(Hardware hw) {
+        this.hw = hw;
     }
 
-    public void update(Gamepad gamepad) {
+    public void update(Gamepad gamepad, int teamTagId) {
         if (hw == null) {
-            throw new IllegalStateException("Drive.setup(Hardware) must be called before update().");
+            throw new IllegalStateException("Hardware not found during drive.update().");
         }
+
+        if (!gamepad.x) {
+            driveSystem(gamepad);
+        } else {
+            centerOnTag(teamTagId);
+        }
+    }
     
+    private void driveSystem(Gamepad gamepad) {
         // Reset heading - center Logitech button is ps button
         boolean psPressed = gamepad.ps;
         if (psPressed && !psPressedLast) {
             hw.imu.resetYaw();
         }
         psPressedLast = psPressed;
-
 
         // Drive Mode
         boolean selectPressed = gamepad.back || gamepad.share;
@@ -64,20 +71,16 @@ public class Drive {
         } else if (gamepad.left_bumper) {
             speedLimit = Range.clip(BASE_SPEED_LIMIT + gamepad.left_trigger * TURBO_EXTRA_FACTOR, 0.0, 1.0);
         }
-        
-        double lx = gamepad.left_stick_x;
-        double ly = -gamepad.left_stick_y; // Remember, Y stick value is reversed
-        double rx = gamepad.right_stick_x;
-        
-        // Create small deadzone to accommodate janky / old controllers
-        if (Math.abs(lx) < STICK_DEADZONE) lx = 0;
-        if (Math.abs(ly) < STICK_DEADZONE) ly = 0;
-        if (Math.abs(rx) < STICK_DEADZONE) rx = 0;
 
-        driveWithMode(lx, ly, rx, speedLimit);
-    }
-    
-    private void driveWithMode(double strafe, double forward, double rotate, double speedLimit) {
+        double strafe = gamepad.left_stick_x;
+        double forward = -gamepad.left_stick_y; // Remember, Y stick value is reversed
+        double rotate = gamepad.right_stick_x;
+
+        // Create small deadzone to accommodate janky / old controllers
+        if (Math.abs(strafe) < STICK_DEADZONE) strafe = 0;
+        if (Math.abs(forward) < STICK_DEADZONE) forward = 0;
+        if (Math.abs(rotate) < STICK_DEADZONE) rotate = 0;
+
         if (driveMode == DriveMode.FIELD_CENTRIC) {
             double headingRad = -hw.imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.RADIANS);
     
@@ -88,28 +91,8 @@ public class Drive {
             strafe = tempX * STRAFE_CORRECTION;
             forward = tempY;
         }
-    
+
         drive(strafe, forward, rotate, speedLimit);
-    }
-    
-    private void drive(double strafe, double forward, double rotate, double speedLimit) {
-        LFM = forward + strafe + rotate;
-        RFM = forward - strafe - rotate;
-        LBM = forward - strafe + rotate;
-        RBM = forward + strafe - rotate;
-
-        // Normalize so no value exceeds 1.0
-        double max = Math.max(1.0, Math.max(Math.abs(LFM), Math.max(Math.abs(RFM), Math.max(Math.abs(LBM), Math.abs(RBM)))));
-
-        LFM = Range.clip(LFM / max, -speedLimit, speedLimit);
-        RFM = Range.clip(RFM / max, -speedLimit, speedLimit);
-        LBM = Range.clip(LBM / max, -speedLimit, speedLimit);
-        RBM = Range.clip(RBM / max, -speedLimit, speedLimit);
-
-        hw.leftFrontMotor.setPower(LFM);
-        hw.rightFrontMotor.setPower(RFM);
-        hw.leftBackMotor.setPower(LBM);
-        hw.rightBackMotor.setPower(RBM);
     }
 
     public void centerOnTag(int teamTagId) {
@@ -125,9 +108,37 @@ public class Drive {
         }
 
         rotate = 0.01 * rotate;
+
         drive(0, 0, rotate, 1);
     }
 
+    private void drive(double strafe, double forward, double rotate, double speedLimit) {
+        LFM = forward + strafe + rotate;
+        RFM = forward - strafe - rotate;
+        LBM = forward - strafe + rotate;
+        RBM = forward + strafe - rotate;
+
+        // Normalize so no value exceeds 1.0
+        double max = Math.max(1.0, Math.max(Math.abs(LFM), Math.max(Math.abs(RFM), Math.max(Math.abs(LBM), Math.abs(RBM)))));
+
+        LFM = Range.clip(LFM / max, -speedLimit, speedLimit);
+        RFM = Range.clip(RFM / max, -speedLimit, speedLimit);
+        LBM = Range.clip(LBM / max, -speedLimit, speedLimit);
+        RBM = Range.clip(RBM / max, -speedLimit, speedLimit);
+
+        // Do not allow the wheels to move unless we are on the ground!
+        if (hw.leftViperSlideMotor.getCurrentPosition() > 30 || hw.rightViperSlideMotor.getCurrentPosition() > 30) {
+            LFM = 0;
+            RFM = 0;
+            LBM = 0;
+            RBM = 0;
+        }
+
+        hw.leftFrontMotor.setPower(LFM);
+        hw.rightFrontMotor.setPower(RFM);
+        hw.leftBackMotor.setPower(LBM);
+        hw.rightBackMotor.setPower(RBM);
+    }
     
     public DriveMode getDriveMode() {
         return driveMode;

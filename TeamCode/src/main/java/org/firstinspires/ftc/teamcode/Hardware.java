@@ -21,6 +21,9 @@ public class Hardware {
     
     public DcMotorEx launcher;
 
+    public DcMotorEx   leftViperSlideMotor;
+    public DcMotorEx   rightViperSlideMotor;
+
     public Limelight3A limelight;
 
     public IMU imu;
@@ -60,6 +63,18 @@ public class Hardware {
         launcher.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         launcher.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
         launcher.setVelocity(0);
+
+        leftViperSlideMotor = hardwareMap.get(DcMotorEx.class, "LeftViperMotor");
+        leftViperSlideMotor.setDirection(DcMotor.Direction.FORWARD);
+        leftViperSlideMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        leftViperSlideMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        leftViperSlideMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+
+        rightViperSlideMotor = hardwareMap.get(DcMotorEx.class, "RightViperMotor");
+        rightViperSlideMotor.setDirection(DcMotor.Direction.FORWARD);
+        rightViperSlideMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        rightViperSlideMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        rightViperSlideMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
         limelight = hardwareMap.get(Limelight3A.class, "Limelight");
 

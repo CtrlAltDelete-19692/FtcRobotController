@@ -10,9 +10,6 @@ public class DecodeTeleOp extends LinearOpMode {
 
     private int teamTagId = 20; // TODO: Create function to update team tag Id
     private static final double INTAKE_POWER = 1.0; // Between 0 and 1
-    private static final double LOADER_POWER = 0.5; // Between 0 and 1
-    private static final double LAUNCHER_IDLE_RPM = 0;  // maintains spin
-    private static final double LAUNCHER_FULL_RPM = 200;  // full shooting speed
     private static final double TRIGGER_DEADZONE = 0.05;
 
     @Override
@@ -22,8 +19,9 @@ public class DecodeTeleOp extends LinearOpMode {
         Hardware hw = new Hardware();
         hw.setup(hardwareMap);
 
-        Drive drive = new Drive();
-        drive.setup(hw);
+        Drive drive = new Drive(hw);
+        Launcher launcher = new Launcher(hw);
+        Slides slides = new Slides(hw);
 
         TelemetryDashboard dashboard = new TelemetryDashboard(telemetry, hw);
 
@@ -31,13 +29,16 @@ public class DecodeTeleOp extends LinearOpMode {
 
         waitForStart();
         while (opModeIsActive()) {
-            if (!gamepad1.x) {
-                drive.update(gamepad1);
-            } else {
-                drive.centerOnTag(teamTagId);
+            drive.update(gamepad1, teamTagId);
+            slides.update(gamepad2);
+            launcher.update(gamepad2);
+
+            // Team color change
+            if (gamepad1.y || gamepad2.y) { // TODO: Add logic to ensure it doesn't switch rapidly due to holding the button too long
+                toggleTeamTag();
             }
 
-            // Intake
+            // Intake (not in use)
             if (hw.intake != null) {
                 if (gamepad2.left_trigger > TRIGGER_DEADZONE) {
                     hw.intake.setPower(INTAKE_POWER);
@@ -46,47 +47,8 @@ public class DecodeTeleOp extends LinearOpMode {
                 }
             }
 
-            // Loader
-            if (hw.loader != null) {
-                double currentLauncherVelocity = hw.launcher.getVelocity();
-                boolean launcherReady = currentLauncherVelocity >= (LAUNCHER_FULL_RPM * 0.95); // Within 95% of FULL_RPM
-                //            if (gamepad2.a && launcherReady) {
-                if (gamepad2.a) {
-                    hw.loader.setPower(LOADER_POWER);
-                } else {
-                    hw.loader.setPower(0);
-                }
-            }
-
-            // Team color change
-            if (gamepad1.y || gamepad2.y) { // TODO: Add logic to ensure it doesn't switch rapidly due to holding the button too long
-                toggleTeamTag();
-            }
-
-            AprilTag aprilTag = null;
-            if (hw.limelight != null) {
-                aprilTag = new AprilTag(hw.limelight);
-            }
-
-            // Launcher
-            double z = 3; // TODO: Update this default accordingly
-            double x = 0;
-            if (aprilTag != null) {
-                z = aprilTag.getZ();
-                x = aprilTag.getX();
-            }
-            double launcherVelocity = LAUNCHER_IDLE_RPM;
-            if (gamepad2.right_trigger > TRIGGER_DEADZONE) {
-                launcherVelocity = LAUNCHER_FULL_RPM;
-                if (z <= 0.3) { // TODO: Tune accordingly, maybe set to linear relationship
-                    launcherVelocity *= 0.5;
-                } else if (z <= 0.6) {
-                    launcherVelocity *= 0.7;
-                }
-            }
-            hw.launcher.setVelocity(launcherVelocity);
-
-            dashboard.update(teamTagId, drive, launcherVelocity, x, z);
+            // Telemetry
+            dashboard.update(teamTagId, drive, launcher);
             idle();
         }
     }

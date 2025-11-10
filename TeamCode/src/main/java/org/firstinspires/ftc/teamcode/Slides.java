@@ -1,0 +1,36 @@
+package org.firstinspires.ftc.teamcode;
+
+import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.Gamepad;
+
+public class Slides {
+    private final Hardware hw;
+
+    private static final double UP_VELOCITY = 2000;
+    private static final double DOWN_VELOCITY = -800;
+    private static final double MAX_HEIGHT = 6000;
+    private static final double MIN_HEIGHT = 0;
+
+    public Slides(Hardware hardware) {
+        this.hw = hardware;
+    }
+
+    public void update(Gamepad gamepad) {
+        // TODO: Rewrite to slow the slides down gradually when at the top (or speed up gradually when coming down).
+        // TODO: Deal with starting the bot while slides are not in home position (shouldn't happen, but would be nice to account for).
+        controlSlide(hw.leftViperSlideMotor, gamepad);
+        controlSlide(hw.rightViperSlideMotor, gamepad);
+    }
+
+    private void controlSlide(DcMotorEx motor, Gamepad gamepad) {
+        double position = motor.getCurrentPosition();
+
+        if (gamepad.dpad_up && position < MAX_HEIGHT) {
+            motor.setVelocity(UP_VELOCITY);
+        } else if (gamepad.dpad_down && position > MIN_HEIGHT) {
+            motor.setVelocity(DOWN_VELOCITY);
+        } else {
+            motor.setVelocity(0);
+        }
+    }
+}

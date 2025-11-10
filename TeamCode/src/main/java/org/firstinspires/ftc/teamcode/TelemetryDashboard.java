@@ -8,7 +8,7 @@ public class TelemetryDashboard {
     private final Telemetry telemetry;
     private final Hardware hw;
 
-    private boolean debugEnabled = false;
+    private boolean debugEnabled = true;
     private boolean speechEnabled = true;
 
     private String lastSpokenMode = "";
@@ -20,7 +20,7 @@ public class TelemetryDashboard {
         telemetry.setMsTransmissionInterval(50);
     }
 
-    public void update(int teamTagId, Drive drive, double launcherVelocity, double x, double z) {
+    public void update(int teamTagId, Drive drive, Launcher launcher) {
         String teamColor = "Unknown";
         if (teamTagId == 20) {
             teamColor = "Blue";
@@ -31,15 +31,13 @@ public class TelemetryDashboard {
 
         telemetry.addData("Drive Mode", drive.getDriveMode());
 
-        double headingDeg = hw.imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
-        telemetry.addData("Heading", "%.1f deg", headingDeg);
-        telemetry.addData("Launcher Velocity", "%.0f / %.0f", hw.launcher.getVelocity(), launcherVelocity);
-        telemetry.addData("Tag X, Z", "%.2f, %.2f", x, z);
-
         if (debugEnabled) {
-            double[] p = drive.getWheelPowers();
-            telemetry.addData("LF / RF", "%.2f / %.2f", p[0], p[1]);
-            telemetry.addData("LB / RB", "%.2f / %.2f", p[2], p[3]);
+            double headingDeg = hw.imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
+            telemetry.addData("Heading", "%.1f deg", headingDeg);
+            telemetry.addData("Launcher Velocity", "%.0f / %.0f", hw.launcher.getVelocity(), launcher.launcherVelocity);
+            telemetry.addData("Tag X, Z", "%.2f, %.2f", launcher.x, launcher.z);
+
+            telemetry.addData("Slides L / R", "%d / %d", hw.leftViperSlideMotor.getCurrentPosition(), hw.rightViperSlideMotor.getCurrentPosition());
         }
 
         if (speechEnabled) {
