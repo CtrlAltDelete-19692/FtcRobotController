@@ -20,13 +20,21 @@ public class TelemetryDashboard {
         telemetry.setMsTransmissionInterval(50);
     }
 
-    public void update(Drive drive, double launcherVelocity, double x, double z) { // Test: Does telemetry work? Try debug mode. Audio?
+    public void update(int teamTagId, Drive drive, double launcherVelocity, double x, double z) {
+        String teamColor = "Unknown";
+        if (teamTagId == 20) {
+            teamColor = "Blue";
+        } else if (teamTagId == 24) {
+            teamColor = "Red";
+        }
+        telemetry.addData("Team Color", teamColor);
+
         telemetry.addData("Drive Mode", drive.getDriveMode());
 
         double headingDeg = hw.imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
         telemetry.addData("Heading", "%.1f deg", headingDeg);
-        telemetry.addData("Launcher Velocity", "%.0f / %.0f", hw.launcher.getVelocity(), launcherVelocity); // Test: Ensure launcher speeds work against tag distance
-        telemetry.addData("Tag X, Z", "%.2f, %.2f", x, z); // Test: for correctness
+        telemetry.addData("Launcher Velocity", "%.0f / %.0f", hw.launcher.getVelocity(), launcherVelocity);
+        telemetry.addData("Tag X, Z", "%.2f, %.2f", x, z);
 
         if (debugEnabled) {
             double[] p = drive.getWheelPowers();

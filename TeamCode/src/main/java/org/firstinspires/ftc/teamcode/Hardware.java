@@ -46,7 +46,7 @@ public class Hardware {
         rightBackMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
 //        intake = hardwareMap.get(CRServo.class, "Intake");
-//        intake.setDirection(CRServo.Direction.REVERSE); // Test: is this backwards?
+//        intake.setDirection(CRServo.Direction.REVERSE); // Might be backwards, it can't be tested as it no longer exists on the physical bot
 //        intake.setPower(0);
 
         loader = hardwareMap.get(CRServo.class, "Loader");
@@ -65,7 +65,7 @@ public class Hardware {
 
         imu = hardwareMap.get(IMU.class, "imu");
         RevHubOrientationOnRobot orientationOnRobot = new RevHubOrientationOnRobot(
-            RevHubOrientationOnRobot.LogoFacingDirection.FORWARD, // TODO & Test: Update according to actual orientation!
+            RevHubOrientationOnRobot.LogoFacingDirection.FORWARD,
             RevHubOrientationOnRobot.UsbFacingDirection.UP
         );
         imuParams = new IMU.Parameters(orientationOnRobot);

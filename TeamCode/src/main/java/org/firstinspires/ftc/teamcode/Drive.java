@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode;
 
+import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.util.Range;
 
@@ -73,16 +74,12 @@ public class Drive {
         if (Math.abs(ly) < STICK_DEADZONE) ly = 0;
         if (Math.abs(rx) < STICK_DEADZONE) rx = 0;
 
-        driveWithMode(lx, ly, rx);
-        setMotorPower(speedLimit);
+        driveWithMode(lx, ly, rx, speedLimit);
     }
     
-    private void driveWithMode(double lx, double ly, double rx) {
-        double strafe = lx;
-        double forward = ly;
-    
-        if (driveMode == DriveMode.FIELD_CENTRIC) { // Test: Field vs Manual modes
-            double headingRad = -hw.imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.RADIANS); // Test: is this backwards?
+    private void driveWithMode(double strafe, double forward, double rotate, double speedLimit) {
+        if (driveMode == DriveMode.FIELD_CENTRIC) {
+            double headingRad = -hw.imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.RADIANS);
     
             double tempX = strafe * Math.cos(headingRad) - forward * Math.sin(headingRad);
             double tempY = strafe * Math.sin(headingRad) + forward * Math.cos(headingRad);
@@ -92,52 +89,45 @@ public class Drive {
             forward = tempY;
         }
     
-        drive(strafe, forward, rx);
+        drive(strafe, forward, rotate, speedLimit);
     }
     
-    private void drive(double strafe, double forward, double rotate) {
+    private void drive(double strafe, double forward, double rotate, double speedLimit) {
         LFM = forward + strafe + rotate;
         RFM = forward - strafe - rotate;
         LBM = forward - strafe + rotate;
         RBM = forward + strafe - rotate;
-    }
-    
-    private void setMotorPower(double speedLimit) {
+
         // Normalize so no value exceeds 1.0
         double max = Math.max(1.0, Math.max(Math.abs(LFM), Math.max(Math.abs(RFM), Math.max(Math.abs(LBM), Math.abs(RBM)))));
-        
+
         LFM = Range.clip(LFM / max, -speedLimit, speedLimit);
         RFM = Range.clip(RFM / max, -speedLimit, speedLimit);
         LBM = Range.clip(LBM / max, -speedLimit, speedLimit);
         RBM = Range.clip(RBM / max, -speedLimit, speedLimit);
-        
-        hw.leftFrontMotor.setPower(LFM);
-        hw.rightFrontMotor.setPower(RFM);
-        hw.leftBackMotor.setPower(LBM);
-        hw.rightBackMotor.setPower(RBM);
-    }
-
-    // TODO: Combine this logic with general drive logic after it's cleaned up and make more generic
-    public void setDrivePowers(double strafe, double forward, double rotate) {
-        double LFM = forward + strafe + rotate;
-        double RFM = forward - strafe - rotate;
-        double LBM = forward - strafe + rotate;
-        double RBM = forward + strafe - rotate;
-
-        // Simple normalization
-        double max = Math.max(1.0, Math.max(Math.abs(LFM),
-                Math.max(Math.abs(RFM), Math.max(Math.abs(LBM), Math.abs(RBM)))));
-
-        LFM /= max;
-        RFM /= max;
-        LBM /= max;
-        RBM /= max;
 
         hw.leftFrontMotor.setPower(LFM);
         hw.rightFrontMotor.setPower(RFM);
         hw.leftBackMotor.setPower(LBM);
         hw.rightBackMotor.setPower(RBM);
     }
+
+    public void centerOnTag(int teamTagId) {
+        LLResult result = hw.limelight.getLatestResult();
+        double rotate = 26;
+        if (result != null && result.isValid()) {
+            double tx = result.getTx();
+            if (Math.abs(tx) < 1) {
+                return;
+            }
+
+            rotate = tx;
+        }
+
+        rotate = 0.01 * rotate;
+        drive(0, 0, rotate, 1);
+    }
+
     
     public DriveMode getDriveMode() {
         return driveMode;

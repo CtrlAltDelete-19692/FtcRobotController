@@ -34,7 +34,7 @@ public class DecodeTeleOp extends LinearOpMode {
             if (!gamepad1.x) {
                 drive.update(gamepad1);
             } else {
-                centerOnTag(hw, drive);
+                drive.centerOnTag(teamTagId);
             }
 
             // Intake
@@ -58,6 +58,11 @@ public class DecodeTeleOp extends LinearOpMode {
                 }
             }
 
+            // Team color change
+            if (gamepad1.y || gamepad2.y) { // TODO: Add logic to ensure it doesn't switch rapidly due to holding the button too long
+                toggleTeamTag();
+            }
+
             AprilTag aprilTag = null;
             if (hw.limelight != null) {
                 aprilTag = new AprilTag(hw.limelight);
@@ -67,13 +72,13 @@ public class DecodeTeleOp extends LinearOpMode {
             double z = 3; // TODO: Update this default accordingly
             double x = 0;
             if (aprilTag != null) {
-                z = aprilTag.getZ(teamTagId);
-                x = aprilTag.getX(teamTagId);
+                z = aprilTag.getZ();
+                x = aprilTag.getX();
             }
             double launcherVelocity = LAUNCHER_IDLE_RPM;
             if (gamepad2.right_trigger > TRIGGER_DEADZONE) {
                 launcherVelocity = LAUNCHER_FULL_RPM;
-                if (z <= 0.3) {
+                if (z <= 0.3) { // TODO: Tune accordingly, maybe set to linear relationship
                     launcherVelocity *= 0.5;
                 } else if (z <= 0.6) {
                     launcherVelocity *= 0.7;
@@ -81,24 +86,16 @@ public class DecodeTeleOp extends LinearOpMode {
             }
             hw.launcher.setVelocity(launcherVelocity);
 
-            dashboard.update(drive, launcherVelocity, x, z);
+            dashboard.update(teamTagId, drive, launcherVelocity, x, z);
             idle();
         }
     }
 
-    public void centerOnTag(Hardware hw, Drive drive) {
-        LLResult result = hw.limelight.getLatestResult();
-        double rotate = 26;
-        if (result != null && result.isValid()) {
-            double tx = result.getTx();
-            if (Math.abs(tx) < 1) {
-                return;
-            }
-
-            rotate = tx;
+    public void toggleTeamTag() {
+        if (teamTagId == 20) {
+            teamTagId = 24;
+        } else if (teamTagId == 24) {
+            teamTagId = 20;
         }
-
-        rotate = 0.01 * rotate;
-        drive.setDrivePowers(0, 0, rotate);
     }
 }
