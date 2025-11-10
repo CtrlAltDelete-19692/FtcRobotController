@@ -8,7 +8,7 @@ public class TelemetryDashboard {
     private final Telemetry telemetry;
     private final Hardware hw;
 
-    private boolean debugEnabled = true;
+    private boolean debugEnabled = false;
     private boolean speechEnabled = true;
 
     private String lastSpokenMode = "";
@@ -20,13 +20,13 @@ public class TelemetryDashboard {
         telemetry.setMsTransmissionInterval(50);
     }
 
-    public void update(Drive drive, double launcherVelocity, double distance) { // Test: Does telemetry work? Try debug mode. Audio?
+    public void update(Drive drive, double launcherVelocity, double x, double z) { // Test: Does telemetry work? Try debug mode. Audio?
         telemetry.addData("Drive Mode", drive.getDriveMode());
 
         double headingDeg = hw.imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
         telemetry.addData("Heading", "%.1f deg", headingDeg);
-        telemetry.addData("Launcher Velocity", "% / %", launcherVelocity, hw.launcher.getVelocity()); // Test: Ensure launcher speeds work against tag distance
-        telemetry.addData("Distance", distance); // Test: for correctness
+        telemetry.addData("Launcher Velocity", "%.0f / %.0f", hw.launcher.getVelocity(), launcherVelocity); // Test: Ensure launcher speeds work against tag distance
+        telemetry.addData("Tag X, Z", "%.2f, %.2f", x, z); // Test: for correctness
 
         if (debugEnabled) {
             double[] p = drive.getWheelPowers();
@@ -37,7 +37,7 @@ public class TelemetryDashboard {
         if (speechEnabled) {
             String modeName = drive.getDriveMode().name().replace("_", " ").toLowerCase();
             if (!modeName.equals(lastSpokenMode)) {
-                telemetry.speak("Drive mode " + modeName);
+                telemetry.speak(modeName);
                 lastSpokenMode = modeName;
             }
         }

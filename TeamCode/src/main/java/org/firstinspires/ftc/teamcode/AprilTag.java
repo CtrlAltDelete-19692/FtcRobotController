@@ -12,10 +12,16 @@ public class AprilTag {
         this.limelight = limelight;
     }
 
-    public double getDistance(int tagId) {
-        int pipeline = 1; // Blue
-        if (tagId == 21) { // TODO: Move these variables into class attr or constants
-            pipeline = 0; // Red
+    public void start() {
+        limelight.setPollRateHz(100);
+        limelight.start();
+    }
+
+    // Clean up getX and getZ
+    public double getX(int tagId) {
+        int pipeline = 0; // Blue
+        if (tagId == 24) { // TODO: Move these variables into class attr or constants
+            pipeline = 1; // Red
         }
         limelight.pipelineSwitch(pipeline);
 
@@ -24,6 +30,23 @@ public class AprilTag {
             if (result.isValid()) {
                 //Pose3D botpose = result.getBotpose();
                 return result.getTx();
+            }
+        }
+
+        return 0;
+    }
+    public double getZ(int tagId) {
+        int pipeline = 0; // Blue
+        if (tagId == 24) { // TODO: Move these variables into class attr or constants
+            pipeline = 1; // Red
+        }
+        limelight.pipelineSwitch(pipeline);
+
+        LLResult result = limelight.getLatestResult();
+        if (result != null) {
+            if (result.isValid()) {
+                //Pose3D botpose = result.getBotpose();
+                return result.getFiducialResults().get(0).getTargetPoseCameraSpace().getPosition().z;
             }
         }
 

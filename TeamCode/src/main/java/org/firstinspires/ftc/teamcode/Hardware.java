@@ -1,7 +1,6 @@
 package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.hardware.limelightvision.Limelight3A;
-import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
@@ -46,13 +45,10 @@ public class Hardware {
         rightBackMotor.setDirection(DcMotor.Direction.FORWARD);
         rightBackMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
-        
-        intake = hardwareMap.get(CRServo.class, "Intake");
-        if (intake != null) {
-            intake.setDirection(CRServo.Direction.REVERSE); // Test: is this backwards?
-            intake.setPower(0);
-        }
-        
+//        intake = hardwareMap.get(CRServo.class, "Intake");
+//        intake.setDirection(CRServo.Direction.REVERSE); // Test: is this backwards?
+//        intake.setPower(0);
+
         loader = hardwareMap.get(CRServo.class, "Loader");
         if (loader != null) {
             loader.setDirection(CRServo.Direction.REVERSE);
@@ -65,7 +61,7 @@ public class Hardware {
         launcher.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
         launcher.setVelocity(0);
 
-        //limelight = hardwareMap.get(Limelight3A.class, "Limelight");
+        limelight = hardwareMap.get(Limelight3A.class, "Limelight");
 
         imu = hardwareMap.get(IMU.class, "imu");
         RevHubOrientationOnRobot orientationOnRobot = new RevHubOrientationOnRobot(

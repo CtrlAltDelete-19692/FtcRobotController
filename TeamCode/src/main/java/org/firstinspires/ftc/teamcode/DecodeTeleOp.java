@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode;
 
+import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
@@ -7,7 +8,7 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
 public class DecodeTeleOp extends LinearOpMode {
 
-    private int teamTagId = 21; // TODO: Create function to update team tag Id
+    private int teamTagId = 20; // TODO: Create function to update team tag Id
     private static final double INTAKE_POWER = 1.0; // Between 0 and 1
     private static final double LOADER_POWER = 0.5; // Between 0 and 1
     private static final double LAUNCHER_IDLE_RPM = 0;  // maintains spin
@@ -26,9 +27,15 @@ public class DecodeTeleOp extends LinearOpMode {
 
         TelemetryDashboard dashboard = new TelemetryDashboard(telemetry, hw);
 
+        hw.limelight.start();
+
         waitForStart();
         while (opModeIsActive()) {
-            drive.update(gamepad1);
+            if (!gamepad1.x) {
+                drive.update(gamepad1);
+            } else {
+                centerOnTag(hw, drive);
+            }
 
             // Intake
             if (hw.intake != null) {
@@ -51,23 +58,47 @@ public class DecodeTeleOp extends LinearOpMode {
                 }
             }
 
+            AprilTag aprilTag = null;
+            if (hw.limelight != null) {
+                aprilTag = new AprilTag(hw.limelight);
+            }
+
             // Launcher
-//            AprilTag aprilTag = new AprilTag(hw.limelight);
-//            double distance = aprilTag.getDistance(teamTagId);
+            double z = 3; // TODO: Update this default accordingly
+            double x = 0;
+            if (aprilTag != null) {
+                z = aprilTag.getZ(teamTagId);
+                x = aprilTag.getX(teamTagId);
+            }
             double launcherVelocity = LAUNCHER_IDLE_RPM;
-            double distance = 1;
             if (gamepad2.right_trigger > TRIGGER_DEADZONE) {
                 launcherVelocity = LAUNCHER_FULL_RPM;
-                if (distance <= 1) {
-                    launcherVelocity *= 0.8;
-                } else if (distance <= 2) {
-                    launcherVelocity *= 0.9;
+                if (z <= 0.3) {
+                    launcherVelocity *= 0.5;
+                } else if (z <= 0.6) {
+                    launcherVelocity *= 0.7;
                 }
             }
             hw.launcher.setVelocity(launcherVelocity);
 
-            dashboard.update(drive, launcherVelocity, distance);
+            dashboard.update(drive, launcherVelocity, x, z);
             idle();
         }
+    }
+
+    public void centerOnTag(Hardware hw, Drive drive) {
+        LLResult result = hw.limelight.getLatestResult();
+        double rotate = 26;
+        if (result != null && result.isValid()) {
+            double tx = result.getTx();
+            if (Math.abs(tx) < 1) {
+                return;
+            }
+
+            rotate = tx;
+        }
+
+        rotate = 0.01 * rotate;
+        drive.setDrivePowers(0, 0, rotate);
     }
 }

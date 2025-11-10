@@ -116,6 +116,28 @@ public class Drive {
         hw.leftBackMotor.setPower(LBM);
         hw.rightBackMotor.setPower(RBM);
     }
+
+    // TODO: Combine this logic with general drive logic after it's cleaned up and make more generic
+    public void setDrivePowers(double strafe, double forward, double rotate) {
+        double LFM = forward + strafe + rotate;
+        double RFM = forward - strafe - rotate;
+        double LBM = forward - strafe + rotate;
+        double RBM = forward + strafe - rotate;
+
+        // Simple normalization
+        double max = Math.max(1.0, Math.max(Math.abs(LFM),
+                Math.max(Math.abs(RFM), Math.max(Math.abs(LBM), Math.abs(RBM)))));
+
+        LFM /= max;
+        RFM /= max;
+        LBM /= max;
+        RBM /= max;
+
+        hw.leftFrontMotor.setPower(LFM);
+        hw.rightFrontMotor.setPower(RFM);
+        hw.leftBackMotor.setPower(LBM);
+        hw.rightBackMotor.setPower(RBM);
+    }
     
     public DriveMode getDriveMode() {
         return driveMode;
