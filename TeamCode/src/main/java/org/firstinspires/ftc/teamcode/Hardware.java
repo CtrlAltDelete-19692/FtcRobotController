@@ -5,6 +5,7 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.VoltageSensor;
 import com.qualcomm.robotcore.hardware.IMU;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
@@ -59,10 +60,12 @@ public class Hardware {
         }
         
         launcher = hardwareMap.get(DcMotorEx.class, "Launcher");
-        launcher.setDirection(DcMotor.Direction.FORWARD);
+        launcher.setDirection(DcMotor.Direction.REVERSE);
         launcher.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         launcher.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
         launcher.setVelocity(0);
+        PIDFCoefficients newCoeffs = new PIDFCoefficients(10, 0, 1.5, 60);
+        launcher.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, newCoeffs);
 
         leftViperSlideMotor = hardwareMap.get(DcMotorEx.class, "LeftViperMotor");
         leftViperSlideMotor.setDirection(DcMotor.Direction.FORWARD);

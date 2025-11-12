@@ -8,10 +8,12 @@ public class Launcher {
 
     private static final double LOADER_POWER = 0.5; // Between 0 and 1
     private static final double LAUNCHER_IDLE_RPM = 0;  // maintains spin
-    private static final double LAUNCHER_FULL_RPM = 200;  // full shooting speed
+    private static final double LAUNCHER_FULL_RPM = 500;  // full shooting speed
     private static final double TRIGGER_DEADZONE = 0.05;
 
     public double launcherVelocity = 0;
+
+    public int add = 0;
     public double x = -1;
 
     public double z = -1;
@@ -57,13 +59,22 @@ public class Launcher {
         }
         launcherVelocity = LAUNCHER_IDLE_RPM;
         if (gamepad.right_trigger > TRIGGER_DEADZONE) {
-            launcherVelocity = LAUNCHER_FULL_RPM;
-            if (z <= 0.3) { // TODO: Tune accordingly, maybe set to linear relationship
-                launcherVelocity *= 0.5;
-            } else if (z <= 0.6) {
-                launcherVelocity *= 0.7;
+            launcherVelocity = LAUNCHER_FULL_RPM + add;
+            if (aprilTag != null) {
+                if (z <= 0.3) { // TODO: Tune accordingly, maybe set to linear relationship
+                    launcherVelocity *= 0.5;
+                } else if (z <= 0.6) {
+                    launcherVelocity *= 0.7;
+                }
+            //hw.launcher.setPower(1.0);
             }
         }
+        if (gamepad.x) {
+            add += 20;
+        } else if(gamepad.y) {
+            add -= 20;
+        }
         hw.launcher.setVelocity(launcherVelocity);
+
     }
 }

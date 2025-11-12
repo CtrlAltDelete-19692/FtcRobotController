@@ -31,7 +31,7 @@ public class DecodeTeleOp extends LinearOpMode {
         while (opModeIsActive()) {
             drive.update(gamepad1, teamTagId);
             slides.update(gamepad2);
-            launcher.update(gamepad2);
+            launcher.update(gamepad1);
 
             // Team color change
             if (gamepad1.y || gamepad2.y) { // TODO: Add logic to ensure it doesn't switch rapidly due to holding the button too long
@@ -46,6 +46,8 @@ public class DecodeTeleOp extends LinearOpMode {
                     hw.intake.setPower(0);
                 }
             }
+
+
 
             // Telemetry
             dashboard.update(teamTagId, drive, launcher);

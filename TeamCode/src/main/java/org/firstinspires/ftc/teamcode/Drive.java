@@ -97,7 +97,7 @@ public class Drive {
 
     public void centerOnTag(int teamTagId) {
         LLResult result = hw.limelight.getLatestResult();
-        double rotate = 26;
+        double rotate = 50;
         if (result != null && result.isValid()) {
             double tx = result.getTx();
             if (Math.abs(tx) < 1) {
