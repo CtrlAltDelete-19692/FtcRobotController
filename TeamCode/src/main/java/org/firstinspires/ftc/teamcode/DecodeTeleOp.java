@@ -8,16 +8,23 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
 public class DecodeTeleOp extends LinearOpMode {
 
+    private Hardware hw;
     private int teamTagId = 20; // TODO: Create function to update team tag Id
+    private int pipeline = 0;
     private static final double INTAKE_POWER = 1.0; // Between 0 and 1
     private static final double TRIGGER_DEADZONE = 0.05;
+
+    private boolean yPressedLast = false;
 
     @Override
     public void runOpMode() throws InterruptedException {
         telemetry.speak("Good luck!");
 
-        Hardware hw = new Hardware();
+        hw = new Hardware();
         hw.setup(hardwareMap);
+
+        hw.aprilTag.start();
+        hw.limelight.pipelineSwitch(pipeline);
 
         Drive drive = new Drive(hw);
         Launcher launcher = new Launcher(hw);
@@ -25,18 +32,19 @@ public class DecodeTeleOp extends LinearOpMode {
 
         TelemetryDashboard dashboard = new TelemetryDashboard(telemetry, hw);
 
-        hw.limelight.start();
-
         waitForStart();
         while (opModeIsActive()) {
-            drive.update(gamepad1, teamTagId);
+            hw.aprilTag.update();
+            drive.update(gamepad1);
             slides.update(gamepad2);
-            launcher.update(gamepad1);
+            launcher.update(gamepad2);
 
             // Team color change
-            if (gamepad1.y || gamepad2.y) { // TODO: Add logic to ensure it doesn't switch rapidly due to holding the button too long
-                toggleTeamTag();
+            boolean yPressed = gamepad1.y;
+            if (yPressed && !yPressedLast) {
+                toggleTeam();
             }
+            yPressedLast = yPressed;
 
             // Intake (not in use)
             if (hw.intake != null) {
@@ -47,19 +55,21 @@ public class DecodeTeleOp extends LinearOpMode {
                 }
             }
 
-
-
             // Telemetry
             dashboard.update(teamTagId, drive, launcher);
             idle();
         }
     }
 
-    public void toggleTeamTag() {
-        if (teamTagId == 20) {
+    public void toggleTeam() {
+        if (pipeline == 0) {
+            pipeline = 1; // Red
             teamTagId = 24;
-        } else if (teamTagId == 24) {
+        } else if (pipeline == 1) {
+            pipeline = 0; // Blue
             teamTagId = 20;
         }
+
+        hw.limelight.pipelineSwitch(pipeline);
     }
 }

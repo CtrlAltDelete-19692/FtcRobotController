@@ -32,6 +32,8 @@ public class Hardware {
 
     public VoltageSensor voltageSensor;
 
+    public AprilTag aprilTag = null;
+
     public void setup(HardwareMap hardwareMap) {
         leftFrontMotor = hardwareMap.get(DcMotor.class, "LFM");
         leftFrontMotor.setDirection(DcMotor.Direction.REVERSE);
@@ -80,6 +82,10 @@ public class Hardware {
         rightViperSlideMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
         limelight = hardwareMap.get(Limelight3A.class, "Limelight");
+
+        if (limelight != null) {
+            aprilTag = new AprilTag(limelight);
+        }
 
         imu = hardwareMap.get(IMU.class, "imu");
         RevHubOrientationOnRobot orientationOnRobot = new RevHubOrientationOnRobot(

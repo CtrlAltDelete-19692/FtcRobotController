@@ -16,8 +16,9 @@ public class Drive {
     DriveMode driveMode = DriveMode.FIELD_CENTRIC;
     
     private static final double BASE_SPEED_LIMIT = 0.6;
-    private static final double SLOW_MODE_FACTOR = 0.5;   // right bumper
-    private static final double TURBO_EXTRA_FACTOR = 0.4;   // left trigger
+    private static final double SLOW_MODE_FACTOR = 0.5; // right bumper
+    private static final double TURBO_EXTRA_FACTOR = 0.4; // left trigger
+    private static final double AUTO_AIM_SPEED = 40; // 0 to 100
     private static final double STICK_DEADZONE = 0.05;
     private static final double STRAFE_CORRECTION = 1.1;
 
@@ -33,7 +34,7 @@ public class Drive {
         this.hw = hw;
     }
 
-    public void update(Gamepad gamepad, int teamTagId) {
+    public void update(Gamepad gamepad) {
         if (hw == null) {
             throw new IllegalStateException("Hardware not found during drive.update().");
         }
@@ -41,7 +42,7 @@ public class Drive {
         if (!gamepad.x) {
             driveSystem(gamepad);
         } else {
-            centerOnTag(teamTagId);
+            centerOnTag();
         }
     }
     
@@ -95,9 +96,9 @@ public class Drive {
         drive(strafe, forward, rotate, speedLimit);
     }
 
-    public void centerOnTag(int teamTagId) {
+    public void centerOnTag() {
         LLResult result = hw.limelight.getLatestResult();
-        double rotate = 50;
+        double rotate = AUTO_AIM_SPEED;
         if (result != null && result.isValid()) {
             double tx = result.getTx();
             if (Math.abs(tx) < 1) {
