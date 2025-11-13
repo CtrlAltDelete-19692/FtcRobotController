@@ -8,13 +8,14 @@ public class Launcher {
     private final Hardware hw;
 
     private static final double LOADER_POWER = 0.5; // Between 0 and 1
-    private static final double LAUNCHER_IDLE_TICKS = 0;  // maintains spin
-    private static final double LAUNCHER_FULL_TICKS = 480;  // full shooting speed
-    private static final double TRIGGER_DEADZONE = 0.05;
+    private static final double LAUNCHER_IDLE_TICKS = 150;  // maintains spin
+    public static final double LAUNCHER_FULL_TICKS = 480;  // full shooting speed
+    public static final int LAUNCHER_TICKS_INCREMENTS = 10;  // When manually adjusting launcher, increment / decrement by this amount
+    public static final int LAUNCHER_THREE_POINTER_ADDITIONAL_TICKS = 60;  // How many addition launcher ticks to add from the small white triangle
 
     public double launcherVelocity = 0;
-
-    public int add = 0;
+    public int lvManualAdjustment = 0;
+    public int lvGoalDistanceAdjustment = 0;
 
     public Launcher(Hardware hardware) {
         this.hw = hardware;
@@ -35,8 +36,8 @@ public class Launcher {
         if (hw.loader != null) {
             double currentLauncherVelocity = hw.launcher.getVelocity();
             boolean launcherReady = currentLauncherVelocity >= (LAUNCHER_FULL_TICKS * 0.95); // Within 95% of FULL_RPM
-            //if ((gamepad.right_bumper || gamepad.a) && launcherReady) {
-            if (gamepad.right_bumper || gamepad.a) {
+            //if (gamepad.a && launcherReady) {
+            if (gamepad.a) {
                 hw.loader.setPower(LOADER_POWER);
             } else {
                 hw.loader.setPower(0);
@@ -46,20 +47,32 @@ public class Launcher {
 
     private void launcher(Gamepad gamepad) {
         launcherVelocity = LAUNCHER_IDLE_TICKS;
-        if (gamepad.right_trigger > TRIGGER_DEADZONE) {
-            launcherVelocity = LAUNCHER_FULL_TICKS + add;
-            if (hw.aprilTag.tagSeen && !Double.isNaN(hw.aprilTag.z)) {
-                if (hw.aprilTag.z <= 0.3)      launcherVelocity *= 0.5; // TODO: Tune accordingly, maybe set to linear relationship
-                else if (hw.aprilTag.z <= 0.6) launcherVelocity *= 0.7;
+
+        // Automatic launch velocity adjustment based on tag distance
+        if (hw.aprilTag.tagSeen && !Double.isNaN(hw.aprilTag.z)) {
+                /*if (hw.aprilTag.z <= 0.3)      lvGoalDistanceAdjustment = -60; // TODO: Tune accordingly, maybe set to linear relationship
+                else if (hw.aprilTag.z <= 0.6) lvGoalDistanceAdjustment = -40;*/
+            if (hw.aprilTag.z <= 1) { // In close white triangle, scale down according to closeness to team tag
+                lvGoalDistanceAdjustment = (int)(hw.aprilTag.z * 70);
+            } else if (hw.aprilTag.z > 2) { // Far white triangle
+                lvGoalDistanceAdjustment = LAUNCHER_THREE_POINTER_ADDITIONAL_TICKS;
             }
+        } else {
+            lvGoalDistanceAdjustment = 0;
         }
 
-        if (gamepad.left_trigger > TRIGGER_DEADZONE && gamepad.x) {
-            add += 20;
-        } else if(gamepad.left_trigger > TRIGGER_DEADZONE && gamepad.y) {
-            add -= 20;
+        // Manual launch velocity adjustment
+        if (gamepad.left_bumper) {
+            lvManualAdjustment -= LAUNCHER_TICKS_INCREMENTS;
+        } else if(gamepad.right_bumper) {
+            lvManualAdjustment += LAUNCHER_TICKS_INCREMENTS;
         }
+
+        // Set launch velocity
+        if (gamepad.right_trigger > Hardware.TRIGGER_DEADZONE) {
+            launcherVelocity = LAUNCHER_FULL_TICKS + lvManualAdjustment + lvGoalDistanceAdjustment;
+        }
+
         hw.launcher.setVelocity(launcherVelocity);
-
     }
 }

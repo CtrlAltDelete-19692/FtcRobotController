@@ -11,6 +11,8 @@ import com.qualcomm.robotcore.hardware.IMU;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 
 public class Hardware {
+    public static final double TRIGGER_DEADZONE = 0.05;
+    public static final double STICK_DEADZONE = 0.05;
 
     public DcMotor rightFrontMotor;
     public DcMotor rightBackMotor;

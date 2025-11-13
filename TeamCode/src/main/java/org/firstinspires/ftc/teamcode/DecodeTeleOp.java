@@ -12,7 +12,6 @@ public class DecodeTeleOp extends LinearOpMode {
     private int teamTagId = 20; // TODO: Create function to update team tag Id
     private int pipeline = 0;
     private static final double INTAKE_POWER = 1.0; // Between 0 and 1
-    private static final double TRIGGER_DEADZONE = 0.05;
 
     private boolean yPressedLast = false;
 
@@ -35,12 +34,12 @@ public class DecodeTeleOp extends LinearOpMode {
         waitForStart();
         while (opModeIsActive()) {
             hw.aprilTag.update();
-            drive.update(gamepad1);
+            drive.update(gamepad1, gamepad2);
             slides.update(gamepad2);
             launcher.update(gamepad2);
 
             // Team color change
-            boolean yPressed = gamepad1.y;
+            boolean yPressed = gamepad1.y || gamepad2.y;
             if (yPressed && !yPressedLast) {
                 toggleTeam();
             }
@@ -48,7 +47,7 @@ public class DecodeTeleOp extends LinearOpMode {
 
             // Intake (not in use)
             if (hw.intake != null) {
-                if (gamepad2.left_trigger > TRIGGER_DEADZONE) {
+                if (gamepad2.left_trigger > Hardware.TRIGGER_DEADZONE) {
                     hw.intake.setPower(INTAKE_POWER);
                 } else {
                     hw.intake.setPower(0);

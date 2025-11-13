@@ -18,10 +18,10 @@ public class Drive {
     private static final double BASE_SPEED_LIMIT = 0.6;
     private static final double SLOW_MODE_FACTOR = 0.5; // right bumper
     private static final double TURBO_EXTRA_FACTOR = 0.4; // left trigger
-    private static final double AUTO_AIM_SPEED = 40; // 0 to 100
-    private static final double STICK_DEADZONE = 0.05;
+    private static final double AUTO_AIM_SPEED = 10; // 0 to 100
     private static final double STRAFE_CORRECTION = 1.1;
 
+    public boolean autoCenterWithLauncher = false; // Will run AprilTag-based centering routine while spinning up the launcher
     double LFM = 0;
     double LBM = 0;
     double RFM = 0;
@@ -29,21 +29,31 @@ public class Drive {
     
     private boolean psPressedLast = false;
     private boolean selectPressedLast = false;
+    private boolean bPressedLast = false;
 
     public Drive(Hardware hw) {
         this.hw = hw;
     }
 
-    public void update(Gamepad gamepad) {
+    public void update(Gamepad gamepad, Gamepad gamepad2) {
         if (hw == null) {
             throw new IllegalStateException("Hardware not found during drive.update().");
         }
 
-        if (!gamepad.x) {
-            driveSystem(gamepad);
+        boolean auto = autoCenterWithLauncher && gamepad2.right_trigger > Hardware.TRIGGER_DEADZONE;
+        if (gamepad.left_trigger > Hardware.TRIGGER_DEADZONE || auto) {
+            centerOnTag(-1);
+        } else if (gamepad.right_trigger > Hardware.TRIGGER_DEADZONE) {
+            centerOnTag(1);
         } else {
-            centerOnTag();
+            driveSystem(gamepad);
         }
+
+        boolean bPressed = gamepad2.b;
+        if (bPressed && !bPressedLast) {
+            autoCenterWithLauncher = !autoCenterWithLauncher;
+        }
+        bPressedLast = bPressed;
     }
     
     private void driveSystem(Gamepad gamepad) {
@@ -78,9 +88,9 @@ public class Drive {
         double rotate = gamepad.right_stick_x;
 
         // Create small deadzone to accommodate janky / old controllers
-        if (Math.abs(strafe) < STICK_DEADZONE) strafe = 0;
-        if (Math.abs(forward) < STICK_DEADZONE) forward = 0;
-        if (Math.abs(rotate) < STICK_DEADZONE) rotate = 0;
+        if (Math.abs(strafe) < Hardware.STICK_DEADZONE) strafe = 0;
+        if (Math.abs(forward) < Hardware.STICK_DEADZONE) forward = 0;
+        if (Math.abs(rotate) < Hardware.STICK_DEADZONE) rotate = 0;
 
         if (driveMode == DriveMode.FIELD_CENTRIC) {
             double headingRad = -hw.imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.RADIANS);
@@ -96,19 +106,19 @@ public class Drive {
         drive(strafe, forward, rotate, speedLimit);
     }
 
-    public void centerOnTag() {
+    public void centerOnTag(int reverse) {
         LLResult result = hw.limelight.getLatestResult();
-        double rotate = AUTO_AIM_SPEED;
+        double rotate = AUTO_AIM_SPEED * reverse;
         if (result != null && result.isValid()) {
             double tx = result.getTx();
-            if (Math.abs(tx) < 1) {
+            if (Math.abs(tx) < 1.3) {
                 return;
             }
 
             rotate = tx;
         }
 
-        rotate = 0.01 * rotate;
+        rotate = 0.02 * rotate;
 
         drive(0, 0, rotate, 1);
     }
