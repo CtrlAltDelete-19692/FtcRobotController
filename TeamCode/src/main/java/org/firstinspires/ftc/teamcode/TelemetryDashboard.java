@@ -33,17 +33,21 @@ public class TelemetryDashboard {
         }
         telemetry.addData("Team Color", teamColor);
 
-        telemetry.addData("Drive Mode", drive.getDriveMode());
+        if (drive != null) {
+            telemetry.addData("Drive Mode", drive.getDriveMode());
+        }
 
         if (debugEnabled) {
-            double headingDeg = hw.imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
-            telemetry.addData("Heading", "%.1f deg", headingDeg);
+            //double headingDeg = hw.imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
+            //telemetry.addData("Heading", "%.1f deg", headingDeg);
 
-            //telemetry.addData("PIDF", hw.launcher.getPIDFCoefficients(DcMotorEx.RunMode.RUN_USING_ENCODER));
-            telemetry.addData("Launcher Velocity", "%.0f / %.0f", hw.launcher.getVelocity(), launcher.launcherVelocity);
-            telemetry.addData("LV Add", "%d",launcher.add);
+            if (launcher != null) {
+                //telemetry.addData("PIDF", hw.launcher.getPIDFCoefficients(DcMotorEx.RunMode.RUN_USING_ENCODER));
+                telemetry.addData("Launcher Velocity", "%.0f / %.0f", hw.launcher.getVelocity(), launcher.launcherVelocity);
+                telemetry.addData("LV Add", "%d", launcher.add);
+            }
 
-            if (hw.limelight != null && hw.l) {
+            if (hw.limelight != null) {
                 telemetry.addLine("Limelight Connected ✅");
                 telemetry.addData("Device Name", "Limelight");
                 //telemetry.addData("Poll Rate", hw.limelight.getPollRateHz());
@@ -63,16 +67,16 @@ public class TelemetryDashboard {
             telemetry.addData("Tag X, Z", "%.2f, %.2f", hw.aprilTag.x, hw.aprilTag.z);
             telemetry.addData("LL Pipeline", result != null ? result.getPipelineIndex() : -1);
 
-            telemetry.addData("Slides L / R", "%d / %d", hw.leftViperSlideMotor.getCurrentPosition(), hw.rightViperSlideMotor.getCurrentPosition());
+            //telemetry.addData("Slides L / R", "%d / %d", hw.leftViperSlideMotor.getCurrentPosition(), hw.rightViperSlideMotor.getCurrentPosition());
         }
 
-        if (speechEnabled) {
+        /*if (speechEnabled) {
             String modeName = drive.getDriveMode().name().replace("_", " ").toLowerCase();
             if (!modeName.equals(lastSpokenMode)) {
                 telemetry.speak(modeName);
                 lastSpokenMode = modeName;
             }
-        }
+        }*/
 
         telemetry.update();
     }

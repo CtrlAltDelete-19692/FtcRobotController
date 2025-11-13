@@ -9,7 +9,7 @@ public class Launcher {
 
     private static final double LOADER_POWER = 0.5; // Between 0 and 1
     private static final double LAUNCHER_IDLE_TICKS = 0;  // maintains spin
-    private static final double LAUNCHER_FULL_TICKS = 500;  // full shooting speed
+    private static final double LAUNCHER_FULL_TICKS = 480;  // full shooting speed
     private static final double TRIGGER_DEADZONE = 0.05;
 
     public double launcherVelocity = 0;

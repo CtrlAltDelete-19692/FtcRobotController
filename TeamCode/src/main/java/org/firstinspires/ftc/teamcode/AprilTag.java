@@ -26,10 +26,10 @@ public class AprilTag {
         tagSeen = result != null && result.isValid() && !result.getFiducialResults().isEmpty();
         if (tagSeen) {
             Pose3D botPose = result.getBotpose_MT2();
-            //z = result.getFiducialResults().get(0).getTargetPoseCameraSpace().getPosition().z;
-            //x = result.getFiducialResults().get(0).getTargetPoseCameraSpace().getPosition().x;
-            z = result.getTz();
-            x = result.getTx();
+            z = result.getFiducialResults().get(0).getTargetPoseCameraSpace().getPosition().z;
+            x = result.getFiducialResults().get(0).getTargetPoseCameraSpace().getPosition().x;
+            //z = result.getTz();
+            //x = result.getTx();
         } else {
             z = Double.NaN;
             x = Double.NaN;

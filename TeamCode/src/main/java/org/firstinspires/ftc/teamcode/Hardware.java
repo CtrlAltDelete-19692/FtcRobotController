@@ -81,11 +81,7 @@ public class Hardware {
         rightViperSlideMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         rightViperSlideMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
-        limelight = hardwareMap.get(Limelight3A.class, "Limelight");
-
-        if (limelight != null) {
-            aprilTag = new AprilTag(limelight);
-        }
+        setupLimelight(hardwareMap);
 
         imu = hardwareMap.get(IMU.class, "imu");
         RevHubOrientationOnRobot orientationOnRobot = new RevHubOrientationOnRobot(
@@ -96,6 +92,14 @@ public class Hardware {
         imu.initialize(imuParams);
 
         voltageSensor = hardwareMap.voltageSensor.iterator().next();
+    }
+
+    public void setupLimelight(HardwareMap hardwareMap) {
+        limelight = hardwareMap.get(Limelight3A.class, "Limelight");
+
+        if (limelight != null) {
+            aprilTag = new AprilTag(limelight);
+        }
     }
 
 //    public double getBatteryVoltage() {
