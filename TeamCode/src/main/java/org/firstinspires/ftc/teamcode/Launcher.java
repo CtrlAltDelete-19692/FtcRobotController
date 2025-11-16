@@ -59,23 +59,14 @@ public class Launcher {
 
         launcherVelocity = LAUNCHER_IDLE_TICKS;
 
-        // Automatic launch velocity adjustment based on tag distance
-        if (hw.aprilTag.tagSeen && !Double.isNaN(hw.aprilTag.z)) {
-            double feet = hw.aprilTag.z * 3.28 - 1.5; // There are 3.28ft in a meter, and z is in meters. LAUNCHER_BASE_TICKS is tuned to 2ft, so we subtract 2.
-            if (feet > 0) {
-                lvGoalDistanceAdjustment = (int) (feet * TICKS_PER_FOOT);
-                lvGoalDistanceAdjustment = lvGoalDistanceAdjustment - (lvGoalDistanceAdjustment % 10); // Round to the 10 so slight variations in tag reads don't constantly toggle velocity
-            }
-        } else {
-            lvGoalDistanceAdjustment = 0;
-        }
-
         // Manual launch velocity adjustment
         if (gamepad.left_bumper) {
             lvManualAdjustment -= LAUNCHER_TICKS_INCREMENTS;
         } else if(gamepad.right_bumper) {
             lvManualAdjustment += LAUNCHER_TICKS_INCREMENTS;
         }
+
+        lvGoalDistanceAdjustment = getGoalDistanceAdjustment();
 
         // Set launch velocity
         boolean oneController = gamepad2.right_trigger > Hardware.TRIGGER_DEADZONE && DecodeTeleOp.oneController;
@@ -84,6 +75,30 @@ public class Launcher {
         }
 
         hw.launcher.setVelocity(launcherVelocity);
+    }
+
+    public void autoLauncher(int ticksPerSecond) {
+        int tagAdjustment = getGoalDistanceAdjustment();
+        if (tagAdjustment == -1) {
+            tagAdjustment = ticksPerSecond;
+        }
+        launcherVelocity = LAUNCHER_BASE_TICKS + tagAdjustment;
+        hw.launcher.setVelocity(launcherVelocity);
+    }
+
+    // Automatic launch velocity adjustment based on tag distance
+    public int getGoalDistanceAdjustment() {
+        int adjustment = -1;
+
+        if (hw.aprilTag.tagSeen && !Double.isNaN(hw.aprilTag.z)) {
+            double feet = hw.aprilTag.z * 3.28 - 1.5; // There are 3.28ft in a meter, and z is in meters. LAUNCHER_BASE_TICKS is tuned to 2ft, so we subtract 2.
+            if (feet > 0) {
+                adjustment = (int) (feet * TICKS_PER_FOOT);
+                adjustment = adjustment - (adjustment % 10); // Round to the 10 so slight variations in tag reads don't constantly toggle velocity
+            }
+        }
+
+        return adjustment;
     }
 
     public boolean upToSpeed() {

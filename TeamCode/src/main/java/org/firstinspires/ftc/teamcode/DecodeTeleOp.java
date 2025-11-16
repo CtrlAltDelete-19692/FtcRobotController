@@ -9,7 +9,7 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 public class DecodeTeleOp extends LinearOpMode {
 
     private Hardware hw;
-    private int teamTagId = 20; // TODO: Create function to update team tag Id
+    private int teamTagId = 20;
     private int pipeline = 0;
     public static boolean oneController = true; // Set to true for testing with one controller, set false for competition
     private static final double INTAKE_POWER = 1.0; // Between 0 and 1

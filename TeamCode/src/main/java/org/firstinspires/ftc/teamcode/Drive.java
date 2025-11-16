@@ -16,6 +16,7 @@ public class Drive {
     DriveMode driveMode = DriveMode.FIELD_CENTRIC;
     
     private static final double BASE_SPEED_LIMIT = 0.6;
+    private static final double AUTO_SPEED = 0.6;
     private static final double SLOW_MODE_FACTOR = 0.5; // right bumper
     private static final double TURBO_EXTRA_FACTOR = 0.4; // left trigger
     private static final double STRAFE_CORRECTION = 1.1;
@@ -94,7 +95,7 @@ public class Drive {
         //double rotate = AUTO_AIM_SPEED;
         if (result != null && result.isValid()) {
             double tx = result.getTx();
-            if (Math.abs(tx) < 1.3) {
+            if (Math.abs(tx) < 1.0) {
                 return 0;
             }
 
@@ -131,7 +132,11 @@ public class Drive {
         hw.leftBackMotor.setPower(LBM);
         hw.rightBackMotor.setPower(RBM);
     }
-    
+
+    public void driveCommand(double strafe, double forward, double rotate) {
+        drive(strafe, forward, rotate, AUTO_SPEED);
+    }
+
     public DriveMode getDriveMode() {
         return driveMode;
     }
