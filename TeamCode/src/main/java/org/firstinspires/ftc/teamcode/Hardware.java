@@ -35,6 +35,7 @@ public class Hardware {
     public VoltageSensor voltageSensor;
 
     public AprilTag aprilTag = null;
+    public boolean killMotors = false;
 
     public void setup(HardwareMap hardwareMap) {
         leftFrontMotor = hardwareMap.get(DcMotor.class, "LFM");
@@ -68,7 +69,7 @@ public class Hardware {
         launcher.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         launcher.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
         launcher.setVelocity(0);
-        PIDFCoefficients newCoeffs = new PIDFCoefficients(10, 0, 1.5, 60);
+        PIDFCoefficients newCoeffs = new PIDFCoefficients(14  , 0, 0.8, 13.2);
         launcher.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, newCoeffs);
 
         leftViperSlideMotor = hardwareMap.get(DcMotorEx.class, "LeftViperMotor");
@@ -101,6 +102,23 @@ public class Hardware {
 
         if (limelight != null) {
             aprilTag = new AprilTag(limelight);
+        }
+    }
+
+    public void toggleMotors() {
+        killMotors = ! killMotors;
+        if (killMotors) {
+            launcher.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+            leftFrontMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+            leftBackMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+            rightFrontMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+            rightFrontMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        } else {
+            launcher.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+            leftFrontMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+            leftBackMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+            rightFrontMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+            rightFrontMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
         }
     }
 

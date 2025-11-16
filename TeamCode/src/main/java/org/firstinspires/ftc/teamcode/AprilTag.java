@@ -11,6 +11,7 @@ public class AprilTag {
     public double x = Double.NaN;
 
     public double z = Double.NaN;
+    public double zFeet = Double.NaN;
 
     public AprilTag(Limelight3A limelight) {
         this.limelight = limelight;
@@ -28,8 +29,7 @@ public class AprilTag {
             Pose3D botPose = result.getBotpose_MT2();
             z = result.getFiducialResults().get(0).getTargetPoseCameraSpace().getPosition().z;
             x = result.getFiducialResults().get(0).getTargetPoseCameraSpace().getPosition().x;
-            //z = result.getTz();
-            //x = result.getTx();
+            zFeet = z * 3.28; // There are 3.28 ft in a meter and z is in meters.
         } else {
             z = Double.NaN;
             x = Double.NaN;

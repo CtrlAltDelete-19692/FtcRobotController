@@ -39,44 +39,45 @@ public class TelemetryDashboard {
             driveMode = "\uD83C\uDFAE " + drive.getDriveMode();
         }
 
-        String autoHoming = "Auto-Aim";
-        if (drive.autoCenterWithLauncher) {
-            autoHoming = "\uD83D\uDFE2 " + autoHoming;
+        String motors = "Motors";
+        if (hw.killMotors) {
+            motors = "❌ " + motors;
         } else {
-            autoHoming = "⚪ " + autoHoming;
+            motors = "✅ " + motors;
         }
 
-        telemetry.addLine(teamColor + "      " + driveMode + "      " + autoHoming);
+
+        telemetry.addLine(teamColor + "      " + driveMode + "      " + motors);
+        telemetry.addLine();
+
+        //telemetry.addLine("=== Tags ===");
+        LLResult res = hw.limelight != null ? hw.limelight.getLatestResult() : null;
+        //telemetry.addData("LL Valid Result", res != null && res.isValid());
+        //telemetry.addData("LL Fiducial Count", (res != null && res.isValid()) ? res.getFiducialResults().size() : 0);
 
         if (debugEnabled) {
+            String launcherIcon = "\uD83C\uDF00";
+            if (launcher.launcherVelocity <= 0) {
+                launcherIcon = "";
+            } else if (launcher.upToSpeed()) {
+                launcherIcon = "✅";
+            }
+            telemetry.addLine(String.format("Launcher: %.0f %s", hw.launcher.getVelocity(), launcherIcon));
+            telemetry.addLine(String.format("Target      %.0f (Tag: %d, Manual: %d)", launcher.launcherVelocity, launcher.lvGoalDistanceAdjustment, launcher.lvManualAdjustment));
             telemetry.addLine();
-            telemetry.addLine("=== Launcher ===");
-            //telemetry.addData("PIDF", hw.launcher.getPIDFCoefficients(DcMotorEx.RunMode.RUN_USING_ENCODER));
-            telemetry.addData("Velocity", "%.0f", hw.launcher.getVelocity());
-            telemetry.addLine(String.format("%-10s %-10s %-10s", "Ticks", "Manual Δ", "Tag Δ"));
-            telemetry.addLine(String.format("%-10.0f %-+15.0f %-+15.0f", launcher.launcherVelocity,  (double)launcher.lvManualAdjustment, (double)launcher.lvGoalDistanceAdjustment));
-
-            telemetry.addLine();
-            //telemetry.addLine("=== Tags ===");
-            LLResult res = hw.limelight != null ? hw.limelight.getLatestResult() : null;
-            //telemetry.addData("LL Valid Result", res != null && res.isValid());
-            //telemetry.addData("LL Fiducial Count", (res != null && res.isValid()) ? res.getFiducialResults().size() : 0);
 
             int pipeline = res != null ? res.getPipelineIndex() : -1;
             //telemetry.addData("Pipeline", pipeline);
             if (hw.aprilTag.tagSeen) {
                 //telemetry.addData("Tag X, Z", "%.2f, %.2f", hw.aprilTag.x, hw.aprilTag.z);
-                telemetry.addLine(String.format("Tag found ✅, distance %.2f meters", hw.aprilTag.z));
+                telemetry.addLine(String.format("Tag found ✅, %.2f ft", hw.aprilTag.zFeet));
             } else {
                 telemetry.addLine("Tag not found ❌");
             }
-
             telemetry.addLine();
-            telemetry.addLine("=== Viper Slides ===");
+
             telemetry.addData("Slides L / R", "%d / %d", hw.leftViperSlideMotor.getCurrentPosition(), hw.rightViperSlideMotor.getCurrentPosition());
 
-            telemetry.addLine();
-            telemetry.addLine("=== IMU ===");
             double headingDeg = hw.imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
             telemetry.addData("Heading", "%.1f deg", headingDeg);
         }

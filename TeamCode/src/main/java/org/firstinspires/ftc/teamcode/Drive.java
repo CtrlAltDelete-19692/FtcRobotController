@@ -18,18 +18,15 @@ public class Drive {
     private static final double BASE_SPEED_LIMIT = 0.6;
     private static final double SLOW_MODE_FACTOR = 0.5; // right bumper
     private static final double TURBO_EXTRA_FACTOR = 0.4; // left trigger
-    private static final double AUTO_AIM_SPEED = 10; // 0 to 100
     private static final double STRAFE_CORRECTION = 1.1;
 
-    public boolean autoCenterWithLauncher = false; // Will run AprilTag-based centering routine while spinning up the launcher
     double LFM = 0;
     double LBM = 0;
     double RFM = 0;
     double RBM = 0;
     
-    private boolean psPressedLast = false;
+    private boolean rbPressedLast = false;
     private boolean selectPressedLast = false;
-    private boolean bPressedLast = false;
 
     public Drive(Hardware hw) {
         this.hw = hw;
@@ -40,30 +37,10 @@ public class Drive {
             throw new IllegalStateException("Hardware not found during drive.update().");
         }
 
-        boolean auto = autoCenterWithLauncher && gamepad2.right_trigger > Hardware.TRIGGER_DEADZONE;
-        if (gamepad.left_trigger > Hardware.TRIGGER_DEADZONE || auto) {
-            centerOnTag(-1);
-        } else if (gamepad.right_trigger > Hardware.TRIGGER_DEADZONE) {
-            centerOnTag(1);
-        } else {
-            driveSystem(gamepad);
-        }
-
-        boolean bPressed = gamepad2.b;
-        if (bPressed && !bPressedLast) {
-            autoCenterWithLauncher = !autoCenterWithLauncher;
-        }
-        bPressedLast = bPressed;
+        driveSystem(gamepad, gamepad2);
     }
     
-    private void driveSystem(Gamepad gamepad) {
-        // Reset heading - center Logitech button is ps button
-        boolean psPressed = gamepad.ps;
-        if (psPressed && !psPressedLast) {
-            hw.imu.resetYaw();
-        }
-        psPressedLast = psPressed;
-
+    private void driveSystem(Gamepad gamepad, Gamepad gamepad2) {
         // Drive Mode
         boolean selectPressed = gamepad.back || gamepad.share;
         if (selectPressed && !selectPressedLast) {
@@ -77,10 +54,10 @@ public class Drive {
 
         // Speed modes
         double speedLimit = BASE_SPEED_LIMIT;
-        if (gamepad.right_bumper) {
+        if (gamepad.left_trigger > Hardware.TRIGGER_DEADZONE) {
             speedLimit = BASE_SPEED_LIMIT * SLOW_MODE_FACTOR;
-        } else if (gamepad.left_bumper) {
-            speedLimit = Range.clip(BASE_SPEED_LIMIT + gamepad.left_trigger * TURBO_EXTRA_FACTOR, 0.0, 1.0);
+        } else if (gamepad.right_trigger > Hardware.TRIGGER_DEADZONE) {
+            speedLimit = Range.clip(BASE_SPEED_LIMIT + gamepad.right_trigger * TURBO_EXTRA_FACTOR, 0.0, 1.0);
         }
 
         double strafe = gamepad.left_stick_x;
@@ -97,30 +74,34 @@ public class Drive {
     
             double tempX = strafe * Math.cos(headingRad) - forward * Math.sin(headingRad);
             double tempY = strafe * Math.sin(headingRad) + forward * Math.cos(headingRad);
-    
-            // Counteract imperfect strafing
-            strafe = tempX * STRAFE_CORRECTION;
+
+            strafe = tempX;
             forward = tempY;
+        }
+
+        strafe = strafe * STRAFE_CORRECTION; // Counteract imperfect strafing
+
+        boolean oneController = gamepad.right_trigger > Hardware.TRIGGER_DEADZONE && DecodeTeleOp.oneController;
+        if (gamepad2.right_trigger > Hardware.TRIGGER_DEADZONE || oneController) {
+            rotate = getAutoRotate(rotate);
         }
 
         drive(strafe, forward, rotate, speedLimit);
     }
 
-    public void centerOnTag(int reverse) {
+    public double getAutoRotate(double rotate) {
         LLResult result = hw.limelight.getLatestResult();
-        double rotate = AUTO_AIM_SPEED * reverse;
+        //double rotate = AUTO_AIM_SPEED;
         if (result != null && result.isValid()) {
             double tx = result.getTx();
             if (Math.abs(tx) < 1.3) {
-                return;
+                return 0;
             }
 
-            rotate = tx;
+            rotate = 0.02 * tx;
         }
 
-        rotate = 0.02 * rotate;
-
-        drive(0, 0, rotate, 1);
+        return rotate;
     }
 
     private void drive(double strafe, double forward, double rotate, double speedLimit) {
@@ -137,8 +118,8 @@ public class Drive {
         LBM = Range.clip(LBM / max, -speedLimit, speedLimit);
         RBM = Range.clip(RBM / max, -speedLimit, speedLimit);
 
-        // Do not allow the wheels to move unless we are on the ground!
-        if (hw.leftViperSlideMotor.getCurrentPosition() > 30 || hw.rightViperSlideMotor.getCurrentPosition() > 30) {
+        // Do not allow the wheels to move unless we are on the ground or while we kill the motors
+        if (hw.leftViperSlideMotor.getCurrentPosition() > 30 || hw.rightViperSlideMotor.getCurrentPosition() > 30 || hw.killMotors) {
             LFM = 0;
             RFM = 0;
             LBM = 0;

@@ -8,10 +8,10 @@ public class Launcher {
     private final Hardware hw;
 
     private static final double LOADER_POWER = 0.5; // Between 0 and 1
-    private static final double LAUNCHER_IDLE_TICKS = 150;  // maintains spin
-    public static final double LAUNCHER_FULL_TICKS = 480;  // full shooting speed
+    private static final double LAUNCHER_IDLE_TICKS = 0;  // maintains spin
+    public static final double LAUNCHER_BASE_TICKS = 1000;  // full shooting speed from 2ft
+    public static final double TICKS_PER_FOOT = 60;  // ticks to add for each extra foot of distance, based on testing
     public static final int LAUNCHER_TICKS_INCREMENTS = 10;  // When manually adjusting launcher, increment / decrement by this amount
-    public static final int LAUNCHER_THREE_POINTER_ADDITIONAL_TICKS = 60;  // How many addition launcher ticks to add from the small white triangle
 
     public double launcherVelocity = 0;
     public int lvManualAdjustment = 0;
@@ -21,23 +21,29 @@ public class Launcher {
         this.hw = hardware;
     }
 
-    public void update(Gamepad gamepad) {
+    public void update(Gamepad gamepad, Gamepad gamepad2) {
         // Do not move the loader or launcher motors unless we are on the ground!
         boolean onGround = hw.leftViperSlideMotor.getCurrentPosition() <= 30 && hw.rightViperSlideMotor.getCurrentPosition() <= 30;
         if (! onGround) {
             return;
         }
 
-        loader(gamepad);
-        launcher(gamepad);
+        loader(gamepad, gamepad2);
+        launcher(gamepad, gamepad2);
     }
 
-    private void loader(Gamepad gamepad) {
+    private void loader(Gamepad gamepad, Gamepad gamepad2) {
+        if (hw.killMotors) {
+            hw.loader.setPower(0);
+            return;
+        }
+
         if (hw.loader != null) {
-            double currentLauncherVelocity = hw.launcher.getVelocity();
-            boolean launcherReady = currentLauncherVelocity >= (LAUNCHER_FULL_TICKS * 0.95); // Within 95% of FULL_RPM
-            //if (gamepad.a && launcherReady) {
-            if (gamepad.a) {
+            boolean launcherReady = upToSpeed(); // Within 94% of target
+            boolean oneController = gamepad2.a && DecodeTeleOp.oneController;
+            boolean oneControllerB = gamepad2.b && DecodeTeleOp.oneController;
+            if (((gamepad.a || oneController) && launcherReady) || (gamepad.b || oneControllerB)) {
+            //if (gamepad.a || oneController) {
                 hw.loader.setPower(LOADER_POWER);
             } else {
                 hw.loader.setPower(0);
@@ -45,17 +51,20 @@ public class Launcher {
         }
     }
 
-    private void launcher(Gamepad gamepad) {
+    private void launcher(Gamepad gamepad, Gamepad gamepad2) {
+        if (hw.killMotors) {
+            hw.launcher.setVelocity(0);
+            return;
+        }
+
         launcherVelocity = LAUNCHER_IDLE_TICKS;
 
         // Automatic launch velocity adjustment based on tag distance
         if (hw.aprilTag.tagSeen && !Double.isNaN(hw.aprilTag.z)) {
-                /*if (hw.aprilTag.z <= 0.3)      lvGoalDistanceAdjustment = -60; // TODO: Tune accordingly, maybe set to linear relationship
-                else if (hw.aprilTag.z <= 0.6) lvGoalDistanceAdjustment = -40;*/
-            if (hw.aprilTag.z <= 1) { // In close white triangle, scale down according to closeness to team tag
-                lvGoalDistanceAdjustment = (int)(hw.aprilTag.z * 70);
-            } else if (hw.aprilTag.z > 2) { // Far white triangle
-                lvGoalDistanceAdjustment = LAUNCHER_THREE_POINTER_ADDITIONAL_TICKS;
+            double feet = hw.aprilTag.z * 3.28 - 1.5; // There are 3.28ft in a meter, and z is in meters. LAUNCHER_BASE_TICKS is tuned to 2ft, so we subtract 2.
+            if (feet > 0) {
+                lvGoalDistanceAdjustment = (int) (feet * TICKS_PER_FOOT);
+                lvGoalDistanceAdjustment = lvGoalDistanceAdjustment - (lvGoalDistanceAdjustment % 10); // Round to the 10 so slight variations in tag reads don't constantly toggle velocity
             }
         } else {
             lvGoalDistanceAdjustment = 0;
@@ -69,10 +78,18 @@ public class Launcher {
         }
 
         // Set launch velocity
-        if (gamepad.right_trigger > Hardware.TRIGGER_DEADZONE) {
-            launcherVelocity = LAUNCHER_FULL_TICKS + lvManualAdjustment + lvGoalDistanceAdjustment;
+        boolean oneController = gamepad2.right_trigger > Hardware.TRIGGER_DEADZONE && DecodeTeleOp.oneController;
+        if (gamepad.right_trigger > Hardware.TRIGGER_DEADZONE || oneController) {
+            launcherVelocity = LAUNCHER_BASE_TICKS + lvManualAdjustment + lvGoalDistanceAdjustment;
         }
 
         hw.launcher.setVelocity(launcherVelocity);
+    }
+
+    public boolean upToSpeed() {
+        if (hw.launcher.getVelocity() >= (launcherVelocity * 0.94)) {
+            return true;
+        }
+        return false;
     }
 }

@@ -11,9 +11,11 @@ public class DecodeTeleOp extends LinearOpMode {
     private Hardware hw;
     private int teamTagId = 20; // TODO: Create function to update team tag Id
     private int pipeline = 0;
+    public static boolean oneController = true; // Set to true for testing with one controller, set false for competition
     private static final double INTAKE_POWER = 1.0; // Between 0 and 1
-
     private boolean yPressedLast = false;
+    private boolean xPressedLast = false;
+    private boolean rbPressedLast = false;
 
     @Override
     public void runOpMode() throws InterruptedException {
@@ -36,7 +38,14 @@ public class DecodeTeleOp extends LinearOpMode {
             hw.aprilTag.update();
             drive.update(gamepad1, gamepad2);
             slides.update(gamepad2);
-            launcher.update(gamepad2);
+            launcher.update(gamepad2, gamepad1);
+
+            // Reset heading
+            boolean rbPressed = gamepad1.right_bumper;
+            if (rbPressed && !rbPressedLast) {
+                hw.imu.resetYaw();
+            }
+            rbPressedLast = rbPressed;
 
             // Team color change
             boolean yPressed = gamepad1.y || gamepad2.y;
@@ -44,6 +53,13 @@ public class DecodeTeleOp extends LinearOpMode {
                 toggleTeam();
             }
             yPressedLast = yPressed;
+
+            // Kill Motors for loading
+            boolean xPressed = gamepad1.x;
+            if (xPressed && !xPressedLast) {
+                hw.toggleMotors();
+            }
+            xPressedLast = xPressed;
 
             // Intake (not in use)
             if (hw.intake != null) {
