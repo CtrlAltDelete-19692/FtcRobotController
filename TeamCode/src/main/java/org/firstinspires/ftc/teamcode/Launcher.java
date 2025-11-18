@@ -77,6 +77,10 @@ public class Launcher {
         hw.launcher.setVelocity(launcherVelocity);
     }
 
+    public void stopLauncher() {
+        hw.launcher.setVelocity(0);
+    }
+
     public void autoLauncher(int ticksPerSecond) {
         int tagAdjustment = getGoalDistanceAdjustment();
         if (tagAdjustment == -1) {

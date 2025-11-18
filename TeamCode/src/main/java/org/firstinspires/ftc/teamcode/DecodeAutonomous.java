@@ -11,15 +11,15 @@ public class DecodeAutonomous extends LinearOpMode {
 
     private Drive drive;
     private Launcher launcher;
-    private static final long LOADER_PULSE_MS = 350;  // feed one note
-    private static final long LOADER_GAP_MS = 300;  // gap between shots
+    private static final long LOADER_PULSE_MS = 700;  // feed one note
+    private static final long LOADER_GAP_MS = 700;  // gap between shots
     private static final long QUARTER_TURN_MS = 800;
     private static final long FOOT_MS = 415;
 
     @Override
     public void runOpMode() throws InterruptedException {
-        boolean isBlue = true;
-        boolean squareStart = true;
+        boolean isBlue = false;
+        boolean squareStart = false;
 
         while (!isStarted()) {
             if (gamepad1.x) isBlue = true;
@@ -40,9 +40,11 @@ public class DecodeAutonomous extends LinearOpMode {
         hw.setup(hardwareMap);
 
         int pipeline = 0; // Blue
+        int DIR = -1; // Blue
         teamTagId = 20;
         if (! isBlue) {
             pipeline = 1; // Red
+            DIR = 1; // Red
             teamTagId = 24;
         }
         hw.aprilTag.start();
@@ -55,27 +57,68 @@ public class DecodeAutonomous extends LinearOpMode {
 
         if (opModeIsActive()) {
             if (squareStart) { // Start in Square
-                driveForTime(0, 1, 0, FOOT_MS * 3);
-                driveForTime(0, 0, 1, QUARTER_TURN_MS);
+                driveForTime(0, 1, 0, 200, DIR);
+                centerOnTag(1000);
+                driveForTime(0, 0, -1, 200, DIR);
+                spinUpLauncher((int)(Launcher.TICKS_PER_FOOT * 10), 6000);
+                pulseLoader(LOADER_PULSE_MS, LOADER_GAP_MS);
+                pulseLoader(LOADER_PULSE_MS, LOADER_GAP_MS);
+                pulseLoader(LOADER_PULSE_MS, LOADER_GAP_MS);
+                pulseLoader(LOADER_PULSE_MS, LOADER_GAP_MS);
+                pulseLoader(LOADER_PULSE_MS, LOADER_GAP_MS);
+
+                launcher.stopLauncher();
+
+                sleep(12000);
+
+                driveForTime(0, 1, 0, FOOT_MS * 2, DIR);
+
+                //driveForTime(0, 1, 0, FOOT_MS * 3);
+                //driveForTime(0, 0, 1, QUARTER_TURN_MS);
                 //driveForTime(-1, 1, 1, QUARTER_TURN_MS);
                 //driveForTime(0, 1, 0, 500);
+
             } else { // Start at Goal
-                driveForTime(0, 1, 0, FOOT_MS * 4);
-                driveForTime(0, 0, -1, QUARTER_TURN_MS * 2);
-                centerOnTag(1500);
-                spinUpLauncher((int)(Launcher.TICKS_PER_FOOT * 4), 5000);
+                driveForTime(0, -1, 0, FOOT_MS * 3.5, DIR);
+                driveForTime(1, 0, 0, 600, DIR);
+                //driveForTime(0, 0, -1, QUARTER_TURN_MS * 2);
+                centerOnTag(800);
+                spinUpLauncher((int)(Launcher.TICKS_PER_FOOT * 4), 3000);
                 pulseLoader(LOADER_PULSE_MS, LOADER_GAP_MS);
                 pulseLoader(LOADER_PULSE_MS, LOADER_GAP_MS);
+                pulseLoader(LOADER_PULSE_MS, LOADER_GAP_MS);
+                pulseLoader(LOADER_PULSE_MS, LOADER_GAP_MS);
+                pulseLoader(LOADER_PULSE_MS, LOADER_GAP_MS);
+
+                launcher.stopLauncher();
+
+                driveForTime(0, 1, 0, FOOT_MS * 3.5, DIR);
+
+                sleep(12000);
+                driveForTime(0, -1, 0, FOOT_MS * 3.5, DIR);
+
+                driveForTime(1, 0, 0, 1300, DIR);
+
             }
 
             stopAllMotors();
         }
     }
 
-    private void driveForTime(double strafe, double forward, double rotate, double durationMs) {
+    private void driveForTime(double strafe, double forward, double rotate, double durationMs, int DIR) {
         long start = System.currentTimeMillis();
         while (opModeIsActive() && System.currentTimeMillis() - start < durationMs) {
-            drive.driveCommand(strafe, forward, rotate);
+            drive.driveCommand(strafe*DIR, forward, rotate*DIR);
+            idle();
+        }
+
+        driveStop();
+    }
+
+
+    private void sleep(double durationMs) {
+        long start = System.currentTimeMillis();
+        while (opModeIsActive() && System.currentTimeMillis() - start < durationMs) {
             idle();
         }
 
