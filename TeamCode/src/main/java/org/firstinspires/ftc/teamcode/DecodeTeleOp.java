@@ -11,7 +11,7 @@ public class DecodeTeleOp extends LinearOpMode {
     private Hardware hw;
     private int teamTagId = 20;
     private int pipeline = 0;
-    public static boolean oneController = true; // Set to true for testing with one controller, set false for competition
+    public static boolean oneController = false; // Set to true for testing with one controller, set false for competition
     private static final double INTAKE_POWER = 1.0; // Between 0 and 1
     private boolean yPressedLast = false;
     private boolean xPressedLast = false;
@@ -33,12 +33,27 @@ public class DecodeTeleOp extends LinearOpMode {
 
         TelemetryDashboard dashboard = new TelemetryDashboard(telemetry, hw);
 
+        hw.imu.resetYaw();
+
+        while (!isStarted()) {
+            if (gamepad1.x) changeTeam(true);
+            if (gamepad1.b) changeTeam(false);
+
+            hw.aprilTag.update();
+
+            dashboard.update(teamTagId, drive, launcher);
+        }
+
         waitForStart();
+
         while (opModeIsActive()) {
             hw.aprilTag.update();
             drive.update(gamepad1, gamepad2);
             slides.update(gamepad2);
             launcher.update(gamepad2, gamepad1);
+
+            if (gamepad1.x) changeTeam(true);
+            if (gamepad1.b) changeTeam(false);
 
             // Reset heading
             boolean rbPressed = gamepad1.right_bumper;
@@ -47,15 +62,8 @@ public class DecodeTeleOp extends LinearOpMode {
             }
             rbPressedLast = rbPressed;
 
-            // Team color change
-            boolean yPressed = gamepad1.y || gamepad2.y;
-            if (yPressed && !yPressedLast) {
-                toggleTeam();
-            }
-            yPressedLast = yPressed;
-
             // Kill Motors for loading
-            boolean xPressed = gamepad1.x;
+            boolean xPressed = gamepad1.a;
             if (xPressed && !xPressedLast) {
                 hw.toggleMotors();
             }
@@ -76,13 +84,13 @@ public class DecodeTeleOp extends LinearOpMode {
         }
     }
 
-    public void toggleTeam() {
-        if (pipeline == 0) {
-            pipeline = 1; // Red
-            teamTagId = 24;
-        } else if (pipeline == 1) {
+    public void changeTeam(boolean isBlue) {
+        if (isBlue) {
             pipeline = 0; // Blue
             teamTagId = 20;
+        } else {
+            pipeline = 1; // Red
+            teamTagId = 24;
         }
 
         hw.limelight.pipelineSwitch(pipeline);

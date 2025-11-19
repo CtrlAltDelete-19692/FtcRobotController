@@ -46,14 +46,8 @@ public class TelemetryDashboard {
             motors = "✅ " + motors;
         }
 
-
         telemetry.addLine(teamColor + "      " + driveMode + "      " + motors);
         telemetry.addLine();
-
-        //telemetry.addLine("=== Tags ===");
-        LLResult res = hw.limelight != null ? hw.limelight.getLatestResult() : null;
-        //telemetry.addData("LL Valid Result", res != null && res.isValid());
-        //telemetry.addData("LL Fiducial Count", (res != null && res.isValid()) ? res.getFiducialResults().size() : 0);
 
         if (debugEnabled) {
             String launcherIcon = "\uD83C\uDF00";
@@ -66,6 +60,7 @@ public class TelemetryDashboard {
             telemetry.addLine(String.format("Target      %.0f (Tag: %d, Manual: %d)", launcher.launcherVelocity, launcher.lvGoalDistanceAdjustment, launcher.lvManualAdjustment));
             telemetry.addLine();
 
+            LLResult res = hw.limelight != null ? hw.limelight.getLatestResult() : null;
             int pipeline = res != null ? res.getPipelineIndex() : -1;
             //telemetry.addData("Pipeline", pipeline);
             if (hw.aprilTag.tagSeen) {

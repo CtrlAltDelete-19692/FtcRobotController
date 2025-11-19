@@ -24,8 +24,8 @@ public class Hardware {
     
     public DcMotorEx launcher;
 
-    public DcMotorEx   leftViperSlideMotor;
-    public DcMotorEx   rightViperSlideMotor;
+    public DcMotorEx leftViperSlideMotor;
+    public DcMotorEx rightViperSlideMotor;
 
     public Limelight3A limelight;
 
