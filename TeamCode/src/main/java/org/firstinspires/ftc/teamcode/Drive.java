@@ -19,7 +19,7 @@ public class Drive {
     private static final double AUTO_SPEED = 0.6;
     private static final double SLOW_MODE_FACTOR = 0.5; // right bumper
     private static final double TURBO_EXTRA_FACTOR = 0.4; // left trigger
-    private static final double STRAFE_CORRECTION = 1.1;
+    private static final double STRAFE_CORRECTION = 1.7;
 
     double LFM = 0;
     double LBM = 0;

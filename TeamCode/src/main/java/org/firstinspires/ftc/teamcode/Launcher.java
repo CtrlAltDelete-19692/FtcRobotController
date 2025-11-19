@@ -72,6 +72,8 @@ public class Launcher {
         boolean oneController = gamepad2.right_trigger > Hardware.TRIGGER_DEADZONE && DecodeTeleOp.oneController;
         if (gamepad.right_trigger > Hardware.TRIGGER_DEADZONE || oneController) {
             launcherVelocity = LAUNCHER_BASE_TICKS + lvManualAdjustment + lvGoalDistanceAdjustment;
+        } else if (gamepad.left_trigger > Hardware.TRIGGER_DEADZONE) {
+            launcherVelocity = (LAUNCHER_BASE_TICKS + lvManualAdjustment + lvGoalDistanceAdjustment) * -1;
         }
 
         hw.launcher.setVelocity(launcherVelocity);

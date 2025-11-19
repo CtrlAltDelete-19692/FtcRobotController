@@ -33,8 +33,6 @@ public class DecodeTeleOp extends LinearOpMode {
 
         TelemetryDashboard dashboard = new TelemetryDashboard(telemetry, hw);
 
-        hw.imu.resetYaw();
-
         while (!isStarted()) {
             if (gamepad1.x) changeTeam(true);
             if (gamepad1.b) changeTeam(false);
@@ -45,6 +43,8 @@ public class DecodeTeleOp extends LinearOpMode {
         }
 
         waitForStart();
+
+        hw.imu.resetYaw();
 
         while (opModeIsActive()) {
             hw.aprilTag.update();
