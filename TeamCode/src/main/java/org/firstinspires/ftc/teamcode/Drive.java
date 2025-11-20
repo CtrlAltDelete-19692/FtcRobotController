@@ -15,7 +15,7 @@ public class Drive {
     public enum DriveMode { FIELD_CENTRIC, MANUAL }
     DriveMode driveMode = DriveMode.FIELD_CENTRIC;
     
-    private static final double BASE_SPEED_LIMIT = 0.6;
+    private static final double BASE_SPEED_LIMIT = 0.7;
     private static final double AUTO_SPEED = 0.6;
     private static final double SLOW_MODE_FACTOR = 0.5; // right bumper
     private static final double TURBO_EXTRA_FACTOR = 0.4; // left trigger

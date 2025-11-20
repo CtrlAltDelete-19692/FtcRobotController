@@ -88,9 +88,11 @@ public class DecodeTeleOp extends LinearOpMode {
         if (isBlue) {
             pipeline = 0; // Blue
             teamTagId = 20;
+            telemetry.speak("Blue team");
         } else {
             pipeline = 1; // Red
             teamTagId = 24;
+            telemetry.speak("Red team");
         }
 
         hw.limelight.pipelineSwitch(pipeline);
