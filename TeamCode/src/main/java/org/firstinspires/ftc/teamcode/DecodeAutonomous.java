@@ -219,7 +219,7 @@ public class DecodeAutonomous extends LinearOpMode {
     private void centerOnTag(long durationMs) {
         long start = System.currentTimeMillis();
         while (opModeIsActive() && System.currentTimeMillis() - start < durationMs) {
-            double rotate = drive.getAutoRotate(0);  // re-sample tx each loop
+            double rotate = drive.getAutoRotate(0, teamTagId);  // re-sample tx each loop
             drive.driveCommand(0, 0, rotate);
             idle();
         }

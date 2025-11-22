@@ -90,24 +90,25 @@ public class Hardware {
         rightViperSlideMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         rightViperSlideMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
-//        tagGreenLed = hardwareMap.get(DigitalChannel.class, "TagGreenLed");
-//        tagGreenLed.setMode(DigitalChannel.Mode.OUTPUT);
-//
-//        tagRedLed = hardwareMap.get(DigitalChannel.class, "TagRedLed");
-//        tagRedLed.setMode(DigitalChannel.Mode.OUTPUT);
+        tagGreenLed = hardwareMap.get(DigitalChannel.class, "TagGreenLed");
+        tagGreenLed.setMode(DigitalChannel.Mode.OUTPUT);
 
-//        launcherGreenLed = hardwareMap.get(DigitalChannel.class, "LauncherGreenLed");
-//        launcherGreenLed.setMode(DigitalChannel.Mode.OUTPUT);
-//
-//        launcherRedLed = hardwareMap.get(DigitalChannel.class, "LauncherRedLed");
-//        launcherRedLed.setMode(DigitalChannel.Mode.OUTPUT);
+        tagRedLed = hardwareMap.get(DigitalChannel.class, "TagRedLed");
+
+        tagRedLed.setMode(DigitalChannel.Mode.OUTPUT);
+
+        launcherGreenLed = hardwareMap.get(DigitalChannel.class, "LauncherGreenLed");
+        launcherGreenLed.setMode(DigitalChannel.Mode.OUTPUT);
+
+        launcherRedLed = hardwareMap.get(DigitalChannel.class, "LauncherRedLed");
+        launcherRedLed.setMode(DigitalChannel.Mode.OUTPUT);
 
         setupLimelight(hardwareMap);
 
         imu = hardwareMap.get(IMU.class, "imu");
         RevHubOrientationOnRobot orientationOnRobot = new RevHubOrientationOnRobot(
-            RevHubOrientationOnRobot.LogoFacingDirection.FORWARD,
-            RevHubOrientationOnRobot.UsbFacingDirection.UP
+            RevHubOrientationOnRobot.LogoFacingDirection.UP,
+            RevHubOrientationOnRobot.UsbFacingDirection.BACKWARD
         );
         imuParams = new IMU.Parameters(orientationOnRobot);
         imu.initialize(imuParams);

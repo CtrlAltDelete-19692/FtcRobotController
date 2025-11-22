@@ -32,15 +32,15 @@ public class Drive {
         this.hw = hw;
     }
 
-    public void update(Gamepad gamepad, Gamepad gamepad2) {
+    public void update(Gamepad gamepad, Gamepad gamepad2, int teamTagId) {
         if (hw == null) {
             throw new IllegalStateException("Hardware not found during drive.update().");
         }
 
-        driveSystem(gamepad, gamepad2);
+        driveSystem(gamepad, gamepad2, teamTagId);
     }
     
-    private void driveSystem(Gamepad gamepad, Gamepad gamepad2) {
+    private void driveSystem(Gamepad gamepad, Gamepad gamepad2, int teamTagId) {
         // Drive Mode
         boolean selectPressed = gamepad.back || gamepad.share;
         if (selectPressed && !selectPressedLast) {
@@ -83,17 +83,21 @@ public class Drive {
 
         boolean oneController = gamepad.right_trigger > Hardware.TRIGGER_DEADZONE && DecodeTeleOp.oneController;
         if (gamepad2.right_trigger > Hardware.TRIGGER_DEADZONE || oneController) {
-            rotate = getAutoRotate(rotate);
+            rotate = getAutoRotate(rotate, teamTagId);
         }
 
         drive(strafe, forward, rotate, speedLimit);
     }
 
-    public double getAutoRotate(double rotate) {
+    public double getAutoRotate(double rotate, int teamTagId) {
         LLResult result = hw.limelight.getLatestResult();
         //double rotate = AUTO_AIM_SPEED;
         if (result != null && result.isValid()) {
             double tx = result.getTx();
+            if (teamTagId == 20) { // Blue
+                tx = tx - 8;
+            }
+
             if (Math.abs(tx) < 1.0) {
                 return 0;
             }

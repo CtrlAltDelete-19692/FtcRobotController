@@ -49,10 +49,10 @@ public class DecodeTeleOp extends LinearOpMode {
 
         while (opModeIsActive()) {
             hw.aprilTag.update();
-            drive.update(gamepad1, gamepad2);
+            drive.update(gamepad1, gamepad2, teamTagId);
             slides.update(gamepad2);
             launcher.update(gamepad2, gamepad1);
-            //leds.update();
+            leds.update(launcher, gamepad2);
 
             if (gamepad1.x) changeTeam(true);
             if (gamepad1.b) changeTeam(false);
