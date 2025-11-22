@@ -23,12 +23,12 @@ public class Slides {
         int lPos = hw.leftViperSlideMotor.getCurrentPosition();
 
         int diff = rPos - lPos;
-        if (diff > 15) { // Right too high
-            leftMultiplier = 0.8;
-            rightMultiplier = 1;
-        } else if (diff < 15) { // Left too high
-            leftMultiplier = 0.8;
-            rightMultiplier = 1;
+        if (diff > 150) { // Right too high
+            //leftMultiplier = 0.8;
+            //rightMultiplier = 1;
+        } else if (diff < 150) { // Left too high
+            //leftMultiplier = 1;
+            //rightMultiplier = 0.8;
         } else {
             leftMultiplier = 1;
             rightMultiplier = 1;
@@ -44,7 +44,7 @@ public class Slides {
         double position = motor.getCurrentPosition();
 
         if (gamepad.dpad_up && position < MAX_HEIGHT) {
-            motor.setVelocity(UP_VELOCITY * multiplier);
+            motor.setVelocity(UP_VELOCITY);
         } else if (gamepad.dpad_down && position > MIN_HEIGHT) {
             motor.setVelocity(DOWN_VELOCITY);
         } else {

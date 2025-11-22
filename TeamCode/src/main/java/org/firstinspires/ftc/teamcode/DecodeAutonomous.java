@@ -83,6 +83,7 @@ public class DecodeAutonomous extends LinearOpMode {
                 pulseLoader();
                 pulseLoader();
                 stopLauncher();
+                  //shoot(5, 5000);
 
                 // Pause out of the way til the end of auto
                 sleep(9000);
@@ -175,6 +176,7 @@ public class DecodeAutonomous extends LinearOpMode {
         long start = System.currentTimeMillis();
         while (opModeIsActive() && System.currentTimeMillis() - start < spinupMs) {
             telemetry.addLine(String.format("Launcher: %.0f", hw.launcher.getVelocity()));
+            telemetry.addLine(String.format("Target: %.0f", launcher.launcherVelocity));
             telemetry.update();
             idle();
         }
@@ -194,6 +196,24 @@ public class DecodeAutonomous extends LinearOpMode {
         // Stop
         hw.loader.setPower(0.0);
         sleep(LOADER_GAP_MS);
+    }
+
+    private void shoot(int shots, int defaultFeet) {
+        spinUpLauncher(defaultFeet, 5000);
+
+        while (shots > 0) {
+            if (hw.launcher.getVelocity() > launcher.launcherVelocity * 0.94) {
+                hw.loader.setPower(0.5);
+                shots = shots - 1;
+                sleep(LOADER_GAP_MS);
+            } else {
+                hw.loader.setPower(0);
+            }
+            idle();
+        }
+
+        hw.loader.setPower(0);
+        stopLauncher();
     }
 
     private void centerOnTag(long durationMs) {

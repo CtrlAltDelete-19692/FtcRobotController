@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.hardware.limelightvision.Limelight3A;
+import com.qualcomm.robotcore.hardware.DigitalChannel;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
@@ -26,6 +27,11 @@ public class Hardware {
 
     public DcMotorEx leftViperSlideMotor;
     public DcMotorEx rightViperSlideMotor;
+
+    public DigitalChannel tagGreenLed;
+    public DigitalChannel tagRedLed;
+    public DigitalChannel launcherGreenLed;
+    public DigitalChannel launcherRedLed;
 
     public Limelight3A limelight;
 
@@ -83,6 +89,18 @@ public class Hardware {
         rightViperSlideMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rightViperSlideMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         rightViperSlideMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+
+//        tagGreenLed = hardwareMap.get(DigitalChannel.class, "TagGreenLed");
+//        tagGreenLed.setMode(DigitalChannel.Mode.OUTPUT);
+//
+//        tagRedLed = hardwareMap.get(DigitalChannel.class, "TagRedLed");
+//        tagRedLed.setMode(DigitalChannel.Mode.OUTPUT);
+
+//        launcherGreenLed = hardwareMap.get(DigitalChannel.class, "LauncherGreenLed");
+//        launcherGreenLed.setMode(DigitalChannel.Mode.OUTPUT);
+//
+//        launcherRedLed = hardwareMap.get(DigitalChannel.class, "LauncherRedLed");
+//        launcherRedLed.setMode(DigitalChannel.Mode.OUTPUT);
 
         setupLimelight(hardwareMap);
 

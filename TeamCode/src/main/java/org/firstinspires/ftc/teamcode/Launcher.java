@@ -52,7 +52,7 @@ public class Launcher {
     }
 
     private void launcher(Gamepad gamepad, Gamepad gamepad2) {
-        if (hw.killMotors) {
+        if (hw.leftViperSlideMotor.getCurrentPosition() > 30 || hw.rightViperSlideMotor.getCurrentPosition() > 30 || hw.killMotors) {
             hw.launcher.setVelocity(0);
             return;
         }

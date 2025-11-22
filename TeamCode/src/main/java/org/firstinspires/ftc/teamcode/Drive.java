@@ -13,7 +13,7 @@ public class Drive {
     private Hardware hw;
 
     public enum DriveMode { FIELD_CENTRIC, MANUAL }
-    DriveMode driveMode = DriveMode.FIELD_CENTRIC;
+    DriveMode driveMode = DriveMode.MANUAL; // Default drive mode
     
     private static final double BASE_SPEED_LIMIT = 0.7;
     private static final double AUTO_SPEED = 0.6;
@@ -25,8 +25,7 @@ public class Drive {
     double LBM = 0;
     double RFM = 0;
     double RBM = 0;
-    
-    private boolean rbPressedLast = false;
+
     private boolean selectPressedLast = false;
 
     public Drive(Hardware hw) {

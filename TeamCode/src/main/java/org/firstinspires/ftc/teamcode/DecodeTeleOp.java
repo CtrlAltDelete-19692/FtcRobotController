@@ -30,6 +30,7 @@ public class DecodeTeleOp extends LinearOpMode {
         Drive drive = new Drive(hw);
         Launcher launcher = new Launcher(hw);
         Slides slides = new Slides(hw);
+        Leds leds = new Leds(hw);
 
         TelemetryDashboard dashboard = new TelemetryDashboard(telemetry, hw);
 
@@ -51,6 +52,7 @@ public class DecodeTeleOp extends LinearOpMode {
             drive.update(gamepad1, gamepad2);
             slides.update(gamepad2);
             launcher.update(gamepad2, gamepad1);
+            //leds.update();
 
             if (gamepad1.x) changeTeam(true);
             if (gamepad1.b) changeTeam(false);
