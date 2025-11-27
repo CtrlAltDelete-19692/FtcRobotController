@@ -13,7 +13,7 @@ public class Drive {
     private Hardware hw;
 
     public enum DriveMode { FIELD_CENTRIC, MANUAL }
-    DriveMode driveMode = DriveMode.MANUAL; // Default drive mode
+    DriveMode driveMode = DriveMode.FIELD_CENTRIC; // Default drive mode
     
     private static final double BASE_SPEED_LIMIT = 0.7;
     private static final double AUTO_SPEED = 0.6;
@@ -123,7 +123,8 @@ public class Drive {
         RBM = Range.clip(RBM / max, -speedLimit, speedLimit);
 
         // Do not allow the wheels to move unless we are on the ground or while we kill the motors
-        if (hw.leftViperSlideMotor.getCurrentPosition() > 30 || hw.rightViperSlideMotor.getCurrentPosition() > 30 || hw.killMotors) {
+        //if (hw.leftViperSlideMotor.getCurrentPosition() > 30 || hw.rightViperSlideMotor.getCurrentPosition() > 30 || hw.killMotors) {
+        if (hw.killMotors) {
             LFM = 0;
             RFM = 0;
             LBM = 0;

@@ -25,7 +25,7 @@ public class Launcher {
         // Do not move the loader or launcher motors unless we are on the ground!
         boolean onGround = hw.leftViperSlideMotor.getCurrentPosition() <= 30 && hw.rightViperSlideMotor.getCurrentPosition() <= 30;
         if (! onGround) {
-            return;
+            //return;
         }
 
         loader(gamepad, gamepad2);
@@ -52,7 +52,8 @@ public class Launcher {
     }
 
     private void launcher(Gamepad gamepad, Gamepad gamepad2) {
-        if (hw.leftViperSlideMotor.getCurrentPosition() > 30 || hw.rightViperSlideMotor.getCurrentPosition() > 30 || hw.killMotors) {
+        //if (hw.leftViperSlideMotor.getCurrentPosition() > 30 || hw.rightViperSlideMotor.getCurrentPosition() > 30 || hw.killMotors) {
+        if (hw.killMotors) {
             hw.launcher.setVelocity(0);
             return;
         }
