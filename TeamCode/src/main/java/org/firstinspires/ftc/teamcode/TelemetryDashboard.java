@@ -53,7 +53,7 @@ public class TelemetryDashboard {
             String launcherIcon = "\uD83C\uDF00";
             if (launcher.launcherVelocity <= 0) {
                 launcherIcon = "";
-            } else if (launcher.upToSpeed()) {
+            } else if (launcher.readyToLaunch) {
                 launcherIcon = "✅";
             }
             telemetry.addLine(String.format("Launcher: %.0f %s", hw.launcher.getVelocity(), launcherIcon));

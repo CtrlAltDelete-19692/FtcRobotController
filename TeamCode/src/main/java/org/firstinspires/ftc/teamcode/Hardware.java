@@ -81,14 +81,12 @@ public class Hardware {
         leftViperSlideMotor = hardwareMap.get(DcMotorEx.class, "LeftViperMotor");
         leftViperSlideMotor.setDirection(DcMotor.Direction.FORWARD);
         leftViperSlideMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        leftViperSlideMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        leftViperSlideMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
         rightViperSlideMotor = hardwareMap.get(DcMotorEx.class, "RightViperMotor");
         rightViperSlideMotor.setDirection(DcMotor.Direction.FORWARD);
         rightViperSlideMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        rightViperSlideMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        rightViperSlideMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+
+        setSlidesToZero();
 
         tagGreenLed = hardwareMap.get(DigitalChannel.class, "TagGreenLed");
         tagGreenLed.setMode(DigitalChannel.Mode.OUTPUT);
@@ -139,6 +137,15 @@ public class Hardware {
             rightFrontMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
             rightFrontMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
         }
+    }
+
+    public void setSlidesToZero() {
+        leftViperSlideMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        rightViperSlideMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+
+        // Must match how we set them in setup()
+        leftViperSlideMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        rightViperSlideMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
     }
 
 //    public double getBatteryVoltage() {

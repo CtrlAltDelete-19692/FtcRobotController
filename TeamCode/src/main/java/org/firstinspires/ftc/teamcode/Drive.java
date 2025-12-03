@@ -15,10 +15,10 @@ public class Drive {
     public enum DriveMode { FIELD_CENTRIC, MANUAL }
     DriveMode driveMode = DriveMode.FIELD_CENTRIC; // Default drive mode
     
-    private static final double BASE_SPEED_LIMIT = 0.7;
+    private static final double BASE_SPEED_LIMIT = 0.75;
     private static final double AUTO_SPEED = 0.6;
-    private static final double SLOW_MODE_FACTOR = 0.5; // right bumper
-    private static final double TURBO_EXTRA_FACTOR = 0.4; // left trigger
+    private static final double SLOW_MODE_FACTOR = 0.2;
+    private static final double TURBO_EXTRA_FACTOR = 0.15;
     private static final double STRAFE_CORRECTION = 1.7;
 
     double LFM = 0;
@@ -94,9 +94,9 @@ public class Drive {
         //double rotate = AUTO_AIM_SPEED;
         if (result != null && result.isValid()) {
             double tx = result.getTx();
-            if (teamTagId == 20) { // Blue
-                tx = tx - 8;
-            }
+            //if (teamTagId == 20) { // Blue
+            //    tx = tx - 8;
+            //}
 
             if (Math.abs(tx) < 1.0) {
                 return 0;

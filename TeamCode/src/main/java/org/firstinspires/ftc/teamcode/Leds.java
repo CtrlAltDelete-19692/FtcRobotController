@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.hardware.Gamepad;
+import com.qualcomm.robotcore.hardware.LED;
 
 public class Leds {
     private final Hardware hw;
@@ -9,21 +10,37 @@ public class Leds {
         this.hw = hardware;
     }
 
-    public void update(Launcher launcher, Gamepad gamepad) {
-        if (! hw.aprilTag.tagSeen) {
-            hw.tagGreenLed.setState(true);
-            hw.tagRedLed.setState(false);
-        } else { // green
-            hw.tagGreenLed.setState(false);
-            hw.tagRedLed.setState(true);
+    public void update(Launcher launcher) {
+        if (hw.aprilTag.tagSeen) {
+            setTagState("green");
+        } else {
+            setTagState("red");
         }
 
-        if (hw.launcher.getVelocity() <= launcher.launcherVelocity * 0.94 || gamepad.right_trigger <= Hardware.TRIGGER_DEADZONE) { // red
-            hw.launcherGreenLed.setState(true);
-            hw.launcherRedLed.setState(false);
-        } else { // green
+        if (launcher.readyToLaunch) {
+            setLauncherState("green");
+        } else {
+            setLauncherState("red");
+        }
+    }
+
+    private void setTagState(String state) {
+        if (state.equals("green")) {
+            hw.tagGreenLed.setState(false);
+            hw.tagRedLed.setState(true);
+        } else if (state.equals("red")) {
+            hw.tagGreenLed.setState(true);
+            hw.tagRedLed.setState(false);
+        }
+    }
+
+    private void setLauncherState(String state) {
+        if (state.equals("green")) {
             hw.launcherGreenLed.setState(false);
             hw.launcherRedLed.setState(true);
+        } else if (state.equals("red")) {
+            hw.launcherGreenLed.setState(true);
+            hw.launcherRedLed.setState(false);
         }
     }
 }

@@ -1,6 +1,5 @@
 package org.firstinspires.ftc.teamcode;
 
-import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
@@ -13,7 +12,6 @@ public class DecodeTeleOp extends LinearOpMode {
     private int pipeline = 0;
     public static boolean oneController = false; // Set to true for testing with one controller, set false for competition
     private static final double INTAKE_POWER = 1.0; // Between 0 and 1
-    private boolean yPressedLast = false;
     private boolean xPressedLast = false;
     private boolean rbPressedLast = false;
 
@@ -52,7 +50,7 @@ public class DecodeTeleOp extends LinearOpMode {
             drive.update(gamepad1, gamepad2, teamTagId);
             slides.update(gamepad2);
             launcher.update(gamepad2, gamepad1);
-            leds.update(launcher, gamepad2);
+            leds.update(launcher);
 
             if (gamepad1.x) changeTeam(true);
             if (gamepad1.b) changeTeam(false);
@@ -67,7 +65,7 @@ public class DecodeTeleOp extends LinearOpMode {
             // Kill Motors for loading
             boolean xPressed = gamepad1.a;
             if (xPressed && !xPressedLast) {
-                hw.toggleMotors();
+                //hw.toggleMotors();
             }
             xPressedLast = xPressed;
 
