@@ -7,11 +7,13 @@ import com.qualcomm.robotcore.hardware.Gamepad;
 public class Slides {
     private final Hardware hw;
 
+    private static final boolean USE_MULTIPLIER = false;
     private static final double UP_VELOCITY = 2000;
     private static final double DOWN_VELOCITY = -800;
     private static final double MAX_HEIGHT = 6000;
     private static final int MIN_SLIDE_DIFFERENCE = 150; // Minimum slide different before the slowing of one slide occurs
     private static final double MAX_SLIDE_SLOWDOWN = 0.6; // 0 to 1 - Represents the minimum slide speed of the slide that is ahead
+    private static final double HOLD_POWER = 0.5;
     private boolean backPressedLast = false;
 
     public Slides(Hardware hardware) {
@@ -50,19 +52,29 @@ public class Slides {
     private void controlSlide(DcMotorEx motor, Gamepad gamepad, double multiplier) {
         double position = motor.getCurrentPosition();
 
+        if (! USE_MULTIPLIER) {
+            multiplier = 1;
+        }
+
         if (gamepad.dpad_up && position < MAX_HEIGHT) {
             motor.setVelocity(UP_VELOCITY * multiplier);
         } else if (gamepad.dpad_down) {
             motor.setVelocity(DOWN_VELOCITY * multiplier);
         } else {
             motor.setVelocity(0);
+
+            // Hold in place with a small amount of power that doesn't actually raise the bot
+            if (hw.leftViperSlideMotor.getCurrentPosition() > 4000) {
+                hw.leftViperSlideMotor.setPower(HOLD_POWER);
+                hw.rightViperSlideMotor.setPower(HOLD_POWER);
+            }
         }
     }
 
     private void setPositionToZero(Gamepad gamepad) {
         boolean backPressed = gamepad.back || gamepad.share;
         if (backPressed && !backPressedLast) {
-            hw.setSlidesToZero();
+            //hw.setSlidesToZero();
         }
         backPressedLast = backPressed;
     }
