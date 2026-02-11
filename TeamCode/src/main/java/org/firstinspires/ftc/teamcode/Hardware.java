@@ -21,6 +21,7 @@ public class Hardware {
     public DcMotor leftBackMotor;
     
     public CRServo intake;
+    public DcMotor pickupMotor;
     public CRServo loader;
     
     public DcMotorEx launcher;
@@ -59,6 +60,9 @@ public class Hardware {
         rightBackMotor = hardwareMap.get(DcMotor.class, "RBM");
         rightBackMotor.setDirection(DcMotor.Direction.FORWARD);
         rightBackMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+
+        pickupMotor = hardwareMap.get(DcMotor.class, "PM");
+        pickupMotor.setDirection(DcMotor.Direction.FORWARD);
 
 //        intake = hardwareMap.get(CRServo.class, "Intake");
 //        intake.setDirection(CRServo.Direction.REVERSE); // Might be backwards, it can't be tested as it no longer exists on the physical bot

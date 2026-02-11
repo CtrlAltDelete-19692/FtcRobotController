@@ -56,6 +56,7 @@ public class TelemetryDashboard {
             } else if (launcher.readyToLaunch) {
                 launcherIcon = "✅";
             }
+            telemetry.addLine(String.format("Pickup Power: %.0f", hw.pickupMotor.getPower()));
             telemetry.addLine(String.format("Launcher: %.0f %s", hw.launcher.getVelocity(), launcherIcon));
             telemetry.addLine(String.format("Target      %.0f (Tag: %d, Manual: %d)", launcher.launcherVelocity, launcher.lvGoalDistanceAdjustment, launcher.lvManualAdjustment));
             telemetry.addLine();

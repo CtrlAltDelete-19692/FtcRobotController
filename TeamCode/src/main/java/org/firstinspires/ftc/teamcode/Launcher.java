@@ -18,6 +18,7 @@ public class Launcher {
     public int lvManualAdjustment = 0;
     public int lvGoalDistanceAdjustment = 0;
     public boolean readyToLaunch = false;
+    public double set_number = 0.8;
 
     public Launcher(Hardware hardware) {
         this.hw = hardware;
@@ -118,5 +119,9 @@ public class Launcher {
 
     public boolean upToSpeed() {
         return hw.launcher.getVelocity() >= (launcherVelocity * LAUNCHER_THRESHOLD);
+    }
+
+    public void pickupIntake(double set_number) {
+            hw.pickupMotor.setPower(set_number);
     }
 }
