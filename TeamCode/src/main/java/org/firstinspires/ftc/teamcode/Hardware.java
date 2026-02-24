@@ -15,19 +15,6 @@ public class Hardware {
     public static final double TRIGGER_DEADZONE = 0.05;
     public static final double STICK_DEADZONE = 0.05;
 
-    public DcMotor rightFrontMotor;
-    public DcMotor rightBackMotor;
-    public DcMotor leftFrontMotor;
-    public DcMotor leftBackMotor;
-
-    public DcMotor pickupMotor;
-    public CRServo loader;
-    
-    public DcMotorEx launcher;
-
-    public DcMotorEx leftViperSlideMotor;
-    public DcMotorEx rightViperSlideMotor;
-
     public DigitalChannel tagGreenLed;
     public DigitalChannel tagRedLed;
     public DigitalChannel launcherGreenLed;
@@ -44,63 +31,19 @@ public class Hardware {
     public boolean killMotors = false;
 
     public void setup(HardwareMap hardwareMap) {
-        leftFrontMotor = hardwareMap.get(DcMotor.class, "LFM");
-        leftFrontMotor.setDirection(DcMotor.Direction.REVERSE);
-        leftFrontMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        
-        leftBackMotor  = hardwareMap.get(DcMotor.class, "LBM");
-        leftBackMotor.setDirection(DcMotor.Direction.REVERSE);
-        leftBackMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        
-        rightFrontMotor = hardwareMap.get(DcMotor.class, "RFM");
-        rightFrontMotor.setDirection(DcMotor.Direction.FORWARD);
-        rightFrontMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        
-        rightBackMotor = hardwareMap.get(DcMotor.class, "RBM");
-        rightBackMotor.setDirection(DcMotor.Direction.FORWARD);
-        rightBackMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-
-        pickupMotor = hardwareMap.get(DcMotor.class, "PM");
-        pickupMotor.setDirection(DcMotor.Direction.FORWARD);
-
-        loader = hardwareMap.get(CRServo.class, "Loader");
-        if (loader != null) {
-            loader.setDirection(CRServo.Direction.REVERSE);
-            loader.setPower(0);
-        }
-        
-        launcher = hardwareMap.get(DcMotorEx.class, "Launcher");
-        launcher.setDirection(DcMotor.Direction.REVERSE);
-        launcher.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        launcher.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
-        launcher.setVelocity(0);
-        PIDFCoefficients newCoeffs = new PIDFCoefficients(14  , 0, 0.8, 13.2);
-        launcher.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, newCoeffs);
-
-        leftViperSlideMotor = hardwareMap.get(DcMotorEx.class, "LeftViperMotor");
-        leftViperSlideMotor.setDirection(DcMotor.Direction.FORWARD);
-        leftViperSlideMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-
-        rightViperSlideMotor = hardwareMap.get(DcMotorEx.class, "RightViperMotor");
-        rightViperSlideMotor.setDirection(DcMotor.Direction.FORWARD);
-        rightViperSlideMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-
-        setSlidesToZero();
-
-        tagGreenLed = hardwareMap.get(DigitalChannel.class, "TagGreenLed");
-        tagGreenLed.setMode(DigitalChannel.Mode.OUTPUT);
-
-        tagRedLed = hardwareMap.get(DigitalChannel.class, "TagRedLed");
-
-        tagRedLed.setMode(DigitalChannel.Mode.OUTPUT);
-
-        launcherGreenLed = hardwareMap.get(DigitalChannel.class, "LauncherGreenLed");
-        launcherGreenLed.setMode(DigitalChannel.Mode.OUTPUT);
-
-        launcherRedLed = hardwareMap.get(DigitalChannel.class, "LauncherRedLed");
-        launcherRedLed.setMode(DigitalChannel.Mode.OUTPUT);
-
-        setupLimelight(hardwareMap);
+//        tagGreenLed = hardwareMap.get(DigitalChannel.class, "TagGreenLed");
+//        tagGreenLed.setMode(DigitalChannel.Mode.OUTPUT);
+//
+//        tagRedLed = hardwareMap.get(DigitalChannel.class, "TagRedLed");
+//        tagRedLed.setMode(DigitalChannel.Mode.OUTPUT);
+//
+//        launcherGreenLed = hardwareMap.get(DigitalChannel.class, "LauncherGreenLed");
+//        launcherGreenLed.setMode(DigitalChannel.Mode.OUTPUT);
+//
+//        launcherRedLed = hardwareMap.get(DigitalChannel.class, "LauncherRedLed");
+//        launcherRedLed.setMode(DigitalChannel.Mode.OUTPUT);
+//
+//        setupLimelight(hardwareMap);
 
         imu = hardwareMap.get(IMU.class, "imu");
         RevHubOrientationOnRobot orientationOnRobot = new RevHubOrientationOnRobot(
@@ -123,28 +66,6 @@ public class Hardware {
 
     public void toggleMotors() {
         killMotors = ! killMotors;
-        if (killMotors) {
-            launcher.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-            leftFrontMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-            leftBackMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-            rightFrontMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-            rightFrontMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        } else {
-            launcher.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
-            leftFrontMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
-            leftBackMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
-            rightFrontMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
-            rightFrontMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
-        }
-    }
-
-    public void setSlidesToZero() {
-        leftViperSlideMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        rightViperSlideMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-
-        // Must match how we set them in setup()
-        leftViperSlideMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-        rightViperSlideMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
     }
 
 //    public double getBatteryVoltage() {

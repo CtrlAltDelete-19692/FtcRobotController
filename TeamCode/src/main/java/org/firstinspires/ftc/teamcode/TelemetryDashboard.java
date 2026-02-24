@@ -24,7 +24,7 @@ public class TelemetryDashboard {
         telemetry.setMsTransmissionInterval(50);
     }
 
-    public void update(int teamTagId, Drive drive, Launcher launcher) {
+    public void update(int teamTagId, Drive drive, Launcher launcher, Intake intake, Slides slides) {
         String teamColor = "Unknown Team";
         if (teamTagId == 20) {
             teamColor = "\uD83D\uDFE6 Blue";
@@ -50,29 +50,36 @@ public class TelemetryDashboard {
         telemetry.addLine();
 
         if (debugEnabled) {
-            String launcherIcon = "\uD83C\uDF00";
-            if (launcher.launcherVelocity <= 0) {
-                launcherIcon = "";
-            } else if (launcher.readyToLaunch) {
-                launcherIcon = "✅";
+            if (launcher != null) {
+                String launcherIcon = "\uD83C\uDF00";
+                if (launcher.launcherVelocity <= 0) {
+                    launcherIcon = "";
+                } else if (launcher.readyToLaunch) {
+                    launcherIcon = "✅";
+                }
+                telemetry.addLine(String.format("Launcher: %.0f %s", launcher.launcher.getVelocity(), launcherIcon));
+                //telemetry.addLine(String.format("Target      %.0f (Tag: %d, Manual: %d)", launcher.launcherVelocity, launcher.lvGoalDistanceAdjustment, launcher.lvManualAdjustment));
             }
-            telemetry.addLine(String.format("Pickup Power: %.0f", hw.pickupMotor.getPower()));
-            telemetry.addLine(String.format("Launcher: %.0f %s", hw.launcher.getVelocity(), launcherIcon));
-            telemetry.addLine(String.format("Target      %.0f (Tag: %d, Manual: %d)", launcher.launcherVelocity, launcher.lvGoalDistanceAdjustment, launcher.lvManualAdjustment));
+
+            if (intake != null) {
+                telemetry.addLine(String.format("Pickup Power: %.0f", intake.pickupMotor.getPower()));
+            }
             telemetry.addLine();
 
             LLResult res = hw.limelight != null ? hw.limelight.getLatestResult() : null;
             int pipeline = res != null ? res.getPipelineIndex() : -1;
             //telemetry.addData("Pipeline", pipeline);
-            if (hw.aprilTag.tagSeen) {
+            /*if (hw.aprilTag.tagSeen) {
                 //telemetry.addData("Tag X, Z", "%.2f, %.2f", hw.aprilTag.x, hw.aprilTag.z);
                 telemetry.addLine(String.format("Tag found ✅, %.2f ft", hw.aprilTag.zFeet));
             } else {
                 telemetry.addLine("Tag not found ❌");
             }
-            telemetry.addLine();
+            telemetry.addLine();*/
 
-            telemetry.addData("Slides L / R", "%d / %d", hw.leftViperSlideMotor.getCurrentPosition(), hw.rightViperSlideMotor.getCurrentPosition());
+            if (slides != null) {
+                telemetry.addData("Slides L / R", "%d / %d", slides.leftViperSlideMotor.getCurrentPosition(), slides.rightViperSlideMotor.getCurrentPosition());
+            }
 
             double headingDeg = hw.imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
             telemetry.addData("Heading", "%.1f deg", headingDeg);

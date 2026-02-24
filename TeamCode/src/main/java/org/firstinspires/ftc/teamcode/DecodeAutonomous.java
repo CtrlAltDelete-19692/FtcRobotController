@@ -11,6 +11,7 @@ public class DecodeAutonomous extends LinearOpMode {
 
     private Drive drive;
     private Launcher launcher;
+    private Intake intake;
 
     private static final String[] AUTO_PROGRAMS = { "Back", "Front" };
     private int autoProgramIndex = 1;
@@ -99,8 +100,9 @@ public class DecodeAutonomous extends LinearOpMode {
         hw.aprilTag.start();
         hw.limelight.pipelineSwitch(pipeline);
 
-        drive = new Drive(hw);
-        launcher = new Launcher(hw);
+        drive = new Drive(hw, hardwareMap, null);
+        launcher = new Launcher(hw, hardwareMap);
+        intake = new Intake(hardwareMap);
 
         waitForStart();
 
@@ -245,7 +247,7 @@ public class DecodeAutonomous extends LinearOpMode {
     }
 
     private void spinUpLauncher(int defaultFeet, long spinupMs) {
-        if (hw.launcher == null) return;
+        if (launcher.launcher == null) return;
 
         launcher.autoLauncher((int)(defaultFeet * Launcher.TICKS_PER_FOOT));
 
@@ -253,7 +255,7 @@ public class DecodeAutonomous extends LinearOpMode {
         while (opModeIsActive()
                 && System.currentTimeMillis() - start < spinupMs
                 && !launcher.upToSpeed()) {
-            telemetry.addLine(String.format("Launcher: %.0f", hw.launcher.getVelocity()));
+            telemetry.addLine(String.format("Launcher: %.0f", launcher.launcher.getVelocity()));
             telemetry.addLine(String.format("Target: %.0f", launcher.launcherVelocity));
             telemetry.update();
             idle();
@@ -265,34 +267,34 @@ public class DecodeAutonomous extends LinearOpMode {
     }
 
     private void pulseLoader() {
-        if (hw.loader == null) return;
+        if (launcher.loader == null) return;
 
         // Feed
-        hw.loader.setPower(0.5); // same as your TeleOp
+        launcher.loader.setPower(0.5); // same as your TeleOp
         sleep(LOADER_PULSE_MS);
 
         // Stop
-        hw.loader.setPower(0.0);
+        launcher.loader.setPower(0.0);
         sleep(LOADER_GAP_MS);
     }
 
     private void heartbeatShoot(){ //
-        if (hw.loader == null) return;
+        if (launcher.loader == null) return;
 
         int feedMs = 400;
 
         // Feed
-        hw.loader.setPower(0.3); // same as your TeleOp
+        launcher.loader.setPower(0.3); // same as your TeleOp
         sleep(feedMs);
 
-        hw.loader.setPower(0.0); //Sleep
+        launcher.loader.setPower(0.0); //Sleep
         sleep(feedMs);
 
         // Go Back
-        hw.loader.setPower(-0.3);
+        launcher.loader.setPower(-0.3);
         sleep(feedMs);
 
-        hw.loader.setPower(0.0); //Sleep again to stop motor
+        launcher.loader.setPower(0.0); //Sleep again to stop motor
     }
 
     private void shoot(int shots, int defaultFeet) {
@@ -312,7 +314,7 @@ public class DecodeAutonomous extends LinearOpMode {
             long now = System.currentTimeMillis();
 
             if (!shotInProgress && !inGap && launcher.upToSpeed()) {
-                hw.loader.setPower(0.5);
+                launcher.loader.setPower(0.5);
                 shotInProgress = true;
                 phaseStartTime = now;
                 telemetry.addLine("First");
@@ -321,7 +323,7 @@ public class DecodeAutonomous extends LinearOpMode {
                 boolean pulseTimedOut = now - phaseStartTime >= 3500; // 1500 is maximum pulse time
 
                 if (velocityDropped || pulseTimedOut) {
-                    hw.loader.setPower(0);
+                    launcher.loader.setPower(0);
                     shotInProgress = false;
                     inGap = true;
                     phaseStartTime = now;
@@ -341,7 +343,7 @@ public class DecodeAutonomous extends LinearOpMode {
         telemetry.addData("Im out!", shots);
         telemetry.update();
 
-        hw.loader.setPower(0);
+        launcher.loader.setPower(0);
         stopLauncher();
     }
 
@@ -359,20 +361,14 @@ public class DecodeAutonomous extends LinearOpMode {
     private void stopAllMotors() {
         driveStop();
 
-        if (hw.launcher != null) {
-            hw.launcher.setVelocity(0);
+        if (launcher.launcher != null) {
+            launcher.launcher.setVelocity(0);
         }
-        if (hw.loader != null) {
-            hw.loader.setPower(0);
+        if (launcher.loader != null) {
+            launcher.loader.setPower(0);
         }
-        if (hw.pickupMotor != null) {
-            hw.pickupMotor.setPower(0);
-        }
-        if (hw.leftViperSlideMotor != null) {
-            hw.leftViperSlideMotor.setPower(0);
-        }
-        if (hw.rightViperSlideMotor != null) {
-            hw.rightViperSlideMotor.setPower(0);
+        if (intake.pickupMotor != null) {
+            intake.pickupMotor.setPower(0);
         }
     }
 }

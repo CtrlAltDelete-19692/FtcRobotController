@@ -2,6 +2,7 @@ package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.DcMotor;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 
@@ -26,9 +27,10 @@ public class DecodeTeleOp extends LinearOpMode {
         hw.aprilTag.start();
         hw.limelight.pipelineSwitch(pipeline);
 
-        Drive drive = new Drive(hw);
-        Launcher launcher = new Launcher(hw);
-        Slides slides = new Slides(hw);
+        Drive drive = new Drive(hw, hardwareMap, null);
+        Launcher launcher = new Launcher(hw, hardwareMap);
+        Intake intake = new Intake(hardwareMap);
+        Slides slides = new Slides(hw, hardwareMap);
         Leds leds = new Leds(hw);
 
         TelemetryDashboard dashboard = new TelemetryDashboard(telemetry, hw);
@@ -39,7 +41,7 @@ public class DecodeTeleOp extends LinearOpMode {
 
             hw.aprilTag.update();
 
-            dashboard.update(teamTagId, drive, launcher);
+            dashboard.update(teamTagId, drive, launcher, intake, slides);
         }
 
         waitForStart();
@@ -71,17 +73,10 @@ public class DecodeTeleOp extends LinearOpMode {
             xPressedLast = xPressed;
 
             // Intake
-            if (hw.pickupMotor != null) {
-                if (gamepad2.dpad_right || gamepad1.dpad_right) {
-                    launcher.pickupIntake(Launcher.INTAKE_POWER);
-                }
-                else {
-                    launcher.pickupIntake(0);
-                }
-            }
+            intake.update(gamepad1, gamepad2);
 
             // Telemetry
-            dashboard.update(teamTagId, drive, launcher);
+            dashboard.update(teamTagId, drive, launcher, intake, slides);
             idle();
         }
     }

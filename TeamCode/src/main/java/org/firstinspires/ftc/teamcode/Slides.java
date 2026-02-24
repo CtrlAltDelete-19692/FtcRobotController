@@ -3,9 +3,13 @@ package org.firstinspires.ftc.teamcode;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.Gamepad;
+import com.qualcomm.robotcore.hardware.HardwareMap;
 
 public class Slides {
     private final Hardware hw;
+
+    public DcMotorEx leftViperSlideMotor;
+    public DcMotorEx rightViperSlideMotor;
 
     private static final boolean USE_MULTIPLIER = false;
     private static final double UP_VELOCITY = 2000;
@@ -16,13 +20,26 @@ public class Slides {
     private static final double HOLD_POWER = 0.5;
     private boolean backPressedLast = false;
 
-    public Slides(Hardware hardware) {
+    public Slides(Hardware hardware, HardwareMap hardwareMap) {
         this.hw = hardware;
+        setup(hardwareMap);
+    }
+
+    public void setup(HardwareMap hardwareMap) {
+        leftViperSlideMotor = hardwareMap.get(DcMotorEx.class, "LeftViperMotor");
+        leftViperSlideMotor.setDirection(DcMotor.Direction.FORWARD);
+        leftViperSlideMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+
+        rightViperSlideMotor = hardwareMap.get(DcMotorEx.class, "RightViperMotor");
+        rightViperSlideMotor.setDirection(DcMotor.Direction.FORWARD);
+        rightViperSlideMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+
+        setSlidesToZero();
     }
 
     public void update(Gamepad gamepad) {
-        int rPos = hw.rightViperSlideMotor.getCurrentPosition();
-        int lPos = hw.leftViperSlideMotor.getCurrentPosition();
+        int rPos = rightViperSlideMotor.getCurrentPosition();
+        int lPos = leftViperSlideMotor.getCurrentPosition();
 
         int diff = rPos - lPos;
 
@@ -43,8 +60,8 @@ public class Slides {
         rightMultiplier = Math.max(0.0, Math.min(rightMultiplier, 1.0));
 
         // TODO: Rewrite to slow the slides down gradually when at the top (or speed up gradually when coming down).
-        controlSlide(hw.leftViperSlideMotor, gamepad, leftMultiplier);
-        controlSlide(hw.rightViperSlideMotor, gamepad, rightMultiplier);
+        controlSlide(leftViperSlideMotor, gamepad, leftMultiplier);
+        controlSlide(rightViperSlideMotor, gamepad, rightMultiplier);
 
         setPositionToZero(gamepad);
     }
@@ -64,9 +81,9 @@ public class Slides {
             motor.setVelocity(0);
 
             // Hold in place with a small amount of power that doesn't actually raise the bot
-            if (hw.leftViperSlideMotor.getCurrentPosition() > 4000) {
-                hw.leftViperSlideMotor.setPower(HOLD_POWER);
-                hw.rightViperSlideMotor.setPower(HOLD_POWER);
+            if (leftViperSlideMotor.getCurrentPosition() > 4000) {
+                leftViperSlideMotor.setPower(HOLD_POWER);
+                rightViperSlideMotor.setPower(HOLD_POWER);
             }
         }
     }
@@ -77,5 +94,14 @@ public class Slides {
             //hw.setSlidesToZero();
         }
         backPressedLast = backPressed;
+    }
+
+    public void setSlidesToZero() {
+        leftViperSlideMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        rightViperSlideMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+
+        // Must match how we set them in setup()
+        leftViperSlideMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        rightViperSlideMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
     }
 }

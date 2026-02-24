@@ -1,7 +1,10 @@
 package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.hardware.limelightvision.LLResult;
+import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Gamepad;
+import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.util.Range;
 
 import org.firstinspires.ftc.robotcore.external.navigation.Orientation;
@@ -11,6 +14,11 @@ import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 
 public class Drive {
     private Hardware hw;
+
+    public DcMotor rightFrontMotor;
+    public DcMotor rightBackMotor;
+    public DcMotor leftFrontMotor;
+    public DcMotor leftBackMotor;
 
     public enum DriveMode { FIELD_CENTRIC, MANUAL }
     DriveMode driveMode = DriveMode.FIELD_CENTRIC; // Default drive mode
@@ -28,8 +36,32 @@ public class Drive {
 
     private boolean selectPressedLast = false;
 
-    public Drive(Hardware hw) {
+    public Drive(Hardware hw, HardwareMap hardwareMap, String driveSystem) {
         this.hw = hw;
+
+        setup(hardwareMap, driveSystem);
+    }
+
+    public void setup(HardwareMap hardwareMap, String driveSystem) {
+        leftFrontMotor = hardwareMap.get(DcMotor.class, "LFM");
+        DcMotor.Direction left = DcMotor.Direction.REVERSE;
+        if (driveSystem.equals("King Bob")) {
+            left = DcMotor.Direction.FORWARD;
+        }
+        leftFrontMotor.setDirection(left);
+        leftFrontMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+
+        leftBackMotor  = hardwareMap.get(DcMotor.class, "LBM");
+        leftBackMotor.setDirection(left);
+        leftBackMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+
+        rightFrontMotor = hardwareMap.get(DcMotor.class, "RFM");
+        rightFrontMotor.setDirection(DcMotor.Direction.FORWARD);
+        rightFrontMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+
+        rightBackMotor = hardwareMap.get(DcMotor.class, "RBM");
+        rightBackMotor.setDirection(DcMotor.Direction.FORWARD);
+        rightBackMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
     }
 
     public void update(Gamepad gamepad, Gamepad gamepad2, int teamTagId) {
@@ -131,10 +163,10 @@ public class Drive {
             RBM = 0;
         }
 
-        hw.leftFrontMotor.setPower(LFM);
-        hw.rightFrontMotor.setPower(RFM);
-        hw.leftBackMotor.setPower(LBM);
-        hw.rightBackMotor.setPower(RBM);
+        leftFrontMotor.setPower(LFM);
+        rightFrontMotor.setPower(RFM);
+        leftBackMotor.setPower(LBM);
+        rightBackMotor.setPower(RBM);
     }
 
     public void driveCommand(double strafe, double forward, double rotate) {

@@ -1,11 +1,18 @@
 package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.hardware.limelightvision.LLResult;
+import com.qualcomm.robotcore.hardware.CRServo;
+import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.Gamepad;
+import com.qualcomm.robotcore.hardware.HardwareMap;
+import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 
 public class Launcher {
     private final Hardware hw;
+    public CRServo loader;
+
+    public DcMotorEx launcher;
 
     private static final double LOADER_POWER = 0.5; // Between 0 and 1
     private static final double LAUNCHER_IDLE_TICKS = 500;  // maintains spin
@@ -13,23 +20,39 @@ public class Launcher {
     public static final double TICKS_PER_FOOT = 60;  // ticks to add for each extra foot of distance, based on testing
     public static final int LAUNCHER_TICKS_INCREMENTS = 10;  // When manually adjusting launcher, increment / decrement by this amount
     public static final double LAUNCHER_THRESHOLD = 0.94;  // What percentage of launcher set velocity is required to shoot
-    public static final double INTAKE_POWER = 0.6;  // Default power for pickup intake, 0 to 1
 
     public double launcherVelocity = 0;
     public int lvManualAdjustment = 0;
     public int lvGoalDistanceAdjustment = 0;
     public boolean readyToLaunch = false;
 
-    public Launcher(Hardware hardware) {
+    public Launcher(Hardware hardware, HardwareMap hardwareMap) {
         this.hw = hardware;
+        setup(hardwareMap);
+    }
+
+    public void setup(HardwareMap hardwareMap) {
+        loader = hardwareMap.get(CRServo.class, "Loader");
+        if (loader != null) {
+            loader.setDirection(CRServo.Direction.REVERSE);
+            loader.setPower(0);
+        }
+
+        launcher = hardwareMap.get(DcMotorEx.class, "Launcher");
+        launcher.setDirection(DcMotor.Direction.REVERSE);
+        launcher.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        launcher.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+        launcher.setVelocity(0);
+        PIDFCoefficients newCoeffs = new PIDFCoefficients(14  , 0, 0.8, 13.2);
+        launcher.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, newCoeffs);
     }
 
     public void update(Gamepad gamepad, Gamepad gamepad2) {
         // Do not move the loader or launcher motors unless we are on the ground!
-        boolean onGround = hw.leftViperSlideMotor.getCurrentPosition() <= 30 && hw.rightViperSlideMotor.getCurrentPosition() <= 30;
-        if (! onGround) {
-            //return;
-        }
+        //boolean onGround = hw.leftViperSlideMotor.getCurrentPosition() <= 30 && hw.rightViperSlideMotor.getCurrentPosition() <= 30;
+        //if (! onGround) {
+        //    return;
+        //}
 
         launcher(gamepad, gamepad2);
         loader(gamepad, gamepad2);
@@ -37,17 +60,17 @@ public class Launcher {
 
     private void loader(Gamepad gamepad, Gamepad gamepad2) {
         if (hw.killMotors) {
-            hw.loader.setPower(0);
+            loader.setPower(0);
             return;
         }
 
-        if (hw.loader != null) {
+        if (loader != null) {
             boolean oneController = gamepad2.a && DecodeTeleOp.oneController;
             boolean oneControllerB = gamepad2.b && DecodeTeleOp.oneController;
             if (((gamepad.a || oneController) && readyToLaunch) || (gamepad.b || oneControllerB)) {
-                hw.loader.setPower(LOADER_POWER);
+                loader.setPower(LOADER_POWER);
             } else {
-                hw.loader.setPower(0);
+                loader.setPower(0);
             }
         }
     }
@@ -64,7 +87,7 @@ public class Launcher {
 
         //if (hw.leftViperSlideMotor.getCurrentPosition() > 30 || hw.rightViperSlideMotor.getCurrentPosition() > 30 || hw.killMotors) {
         if (hw.killMotors) {
-            hw.launcher.setVelocity(0);
+            launcher.setVelocity(0);
             return;
         }
 
@@ -86,11 +109,11 @@ public class Launcher {
             launcherVelocity = (LAUNCHER_BASE_TICKS + lvManualAdjustment + lvGoalDistanceAdjustment) * -1;
         }
 
-        hw.launcher.setVelocity(launcherVelocity);
+        launcher.setVelocity(launcherVelocity);
     }
 
     public void stopLauncher() {
-        hw.launcher.setVelocity(0);
+        launcher.setVelocity(0);
     }
 
     public void autoLauncher(int ticksPerSecond) {
@@ -99,7 +122,7 @@ public class Launcher {
             tagAdjustment = ticksPerSecond;
         }
         launcherVelocity = LAUNCHER_BASE_TICKS + tagAdjustment;
-        hw.launcher.setVelocity(launcherVelocity);
+        launcher.setVelocity(launcherVelocity);
     }
 
     // Automatic launch velocity adjustment based on tag distance
@@ -118,10 +141,6 @@ public class Launcher {
     }
 
     public boolean upToSpeed() {
-        return hw.launcher.getVelocity() >= (launcherVelocity * LAUNCHER_THRESHOLD);
-    }
-
-    public void pickupIntake(double power) {
-        hw.pickupMotor.setPower(power);
+        return launcher.getVelocity() >= (launcherVelocity * LAUNCHER_THRESHOLD);
     }
 }
