@@ -13,12 +13,12 @@ public class Launcher {
     public static final double TICKS_PER_FOOT = 60;  // ticks to add for each extra foot of distance, based on testing
     public static final int LAUNCHER_TICKS_INCREMENTS = 10;  // When manually adjusting launcher, increment / decrement by this amount
     public static final double LAUNCHER_THRESHOLD = 0.94;  // What percentage of launcher set velocity is required to shoot
+    public static final double INTAKE_POWER = 0.6;  // Default power for pickup intake, 0 to 1
 
     public double launcherVelocity = 0;
     public int lvManualAdjustment = 0;
     public int lvGoalDistanceAdjustment = 0;
     public boolean readyToLaunch = false;
-    public double set_number = 0.8;
 
     public Launcher(Hardware hardware) {
         this.hw = hardware;
@@ -121,7 +121,7 @@ public class Launcher {
         return hw.launcher.getVelocity() >= (launcherVelocity * LAUNCHER_THRESHOLD);
     }
 
-    public void pickupIntake(double set_number) {
-            hw.pickupMotor.setPower(set_number);
+    public void pickupIntake(double power) {
+        hw.pickupMotor.setPower(power);
     }
 }

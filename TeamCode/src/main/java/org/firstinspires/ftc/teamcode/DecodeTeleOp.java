@@ -13,7 +13,6 @@ public class DecodeTeleOp extends LinearOpMode {
     private int teamTagId = 20;
     private int pipeline = 0;
     public static boolean oneController = false; // Set to true for testing with one controller, set false for competition
-    private static final double INTAKE_POWER = 1.0; // Between 0 and 1
     private boolean xPressedLast = false;
     private boolean rbPressedLast = false;
 
@@ -71,18 +70,10 @@ public class DecodeTeleOp extends LinearOpMode {
             }
             xPressedLast = xPressed;
 
-            // Intake (not in use)
-            if (hw.intake != null) {
-                if (gamepad2.left_trigger > Hardware.TRIGGER_DEADZONE) {
-                    hw.intake.setPower(INTAKE_POWER);
-                } else {
-                    hw.intake.setPower(0);
-                }
-            }
-
+            // Intake
             if (hw.pickupMotor != null) {
                 if (gamepad2.dpad_right || gamepad1.dpad_right) {
-                    launcher.pickupIntake(launcher.set_number);
+                    launcher.pickupIntake(Launcher.INTAKE_POWER);
                 }
                 else {
                     launcher.pickupIntake(0);

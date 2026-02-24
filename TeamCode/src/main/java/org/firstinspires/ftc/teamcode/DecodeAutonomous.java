@@ -365,8 +365,8 @@ public class DecodeAutonomous extends LinearOpMode {
         if (hw.loader != null) {
             hw.loader.setPower(0);
         }
-        if (hw.intake != null) {
-            hw.intake.setPower(0);
+        if (hw.pickupMotor != null) {
+            hw.pickupMotor.setPower(0);
         }
         if (hw.leftViperSlideMotor != null) {
             hw.leftViperSlideMotor.setPower(0);

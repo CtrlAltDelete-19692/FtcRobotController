@@ -19,8 +19,7 @@ public class Hardware {
     public DcMotor rightBackMotor;
     public DcMotor leftFrontMotor;
     public DcMotor leftBackMotor;
-    
-    public CRServo intake;
+
     public DcMotor pickupMotor;
     public CRServo loader;
     
@@ -63,10 +62,6 @@ public class Hardware {
 
         pickupMotor = hardwareMap.get(DcMotor.class, "PM");
         pickupMotor.setDirection(DcMotor.Direction.FORWARD);
-
-//        intake = hardwareMap.get(CRServo.class, "Intake");
-//        intake.setDirection(CRServo.Direction.REVERSE); // Might be backwards, it can't be tested as it no longer exists on the physical bot
-//        intake.setPower(0);
 
         loader = hardwareMap.get(CRServo.class, "Loader");
         if (loader != null) {
