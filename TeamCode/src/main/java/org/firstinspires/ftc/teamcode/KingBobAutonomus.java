@@ -3,6 +3,10 @@ package org.firstinspires.ftc.teamcode;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
+
 @Autonomous(name = "KingBobAutonomous")
 public class KingBobAutonomus extends LinearOpMode {
 
@@ -20,10 +24,22 @@ public class KingBobAutonomus extends LinearOpMode {
 
     private boolean dpadPressedLast = false;
 
+    GoBildaPinpointDriver pinpoint;
+
     @Override
     public void runOpMode() throws InterruptedException {
         boolean isBlue = true;
         int pauseTimeSeconds = 9;
+
+        pinpoint = hardwareMap.get(GoBildaPinpointDriver.class, "Odo");
+
+        // 1. Initialize settings (Check user guide for your specific pod's ticks/mm)
+        //pinpoint.setXOffset(-120.0); // Lateral pod offset
+        //pinpoint.setYOffset(-120.0); // Forward pod offset
+        //pinpoint.setEncoderResolution(GoBildaPinpointDriver.EncoderResolution.goBILDA_4_BAR_POD);
+        //pinpoint.setEncoderDirections(GoBildaPinpointDriver.EncoderDirection.FORWARD, GoBildaPinpointDriver.EncoderDirection.FORWARD);
+
+        pinpoint.resetPosAndIMU(); // Sets current position to (0,0,0)
 
         while (!isStarted()) {
             // Team color selection
@@ -69,17 +85,17 @@ public class KingBobAutonomus extends LinearOpMode {
                 pauseTimeSeconds = 0;
             }
 
-            telemetry.addLine("Team Color");
-            telemetry.addLine((isBlue ? "\uD83D\uDFE6 Blue" : "\uD83D\uDFE5 Red") + "     (X or B)");
-            telemetry.addLine();
-
-            telemetry.addLine("Auto Program");
-            telemetry.addLine(AUTO_PROGRAMS[autoProgramIndex] + "     (D-Pad Left / Right)");
-            telemetry.addLine();
-
-            telemetry.addLine("Pause Time     (D-Pad Up / D-Pad Down)");
-            telemetry.addLine(String.format("%d seconds", pauseTimeSeconds));
-            telemetry.update();
+//            telemetry.addLine("Team Color");
+//            telemetry.addLine((isBlue ? "\uD83D\uDFE6 Blue" : "\uD83D\uDFE5 Red") + "     (X or B)");
+//            telemetry.addLine();
+//
+//            telemetry.addLine("Auto Program");
+//            telemetry.addLine(AUTO_PROGRAMS[autoProgramIndex] + "     (D-Pad Left / Right)");
+//            telemetry.addLine();
+//
+//            telemetry.addLine("Pause Time     (D-Pad Up / D-Pad Down)");
+//            telemetry.addLine(String.format("%d seconds", pauseTimeSeconds));
+//            telemetry.update();
         }
 
         hw = new Hardware();
@@ -97,18 +113,19 @@ public class KingBobAutonomus extends LinearOpMode {
 
         waitForStart();
 
-        telemetry.update(); // Clear previous telemetry data (selection screen)
+        //telemetry.update(); // Clear previous telemetry data (selection screen)
 
         String selectedProgram = AUTO_PROGRAMS[autoProgramIndex];
 
         if (opModeIsActive()) {
+            pinpoint.update(); // Important: Call this every loop to refresh data
 
             // Pause out of the way til the end of auto
-            driveForward(FOOT_MS * 3, direction);
-            pause(pauseTimeSeconds * 1000);
+            driveForward(FOOT_MS * 1, direction);
+            //pause(pauseTimeSeconds * 1000);
 
             // Get out of shooting triangle
-            driveBackward(FOOT_MS * 3.5, direction);
+            //driveBackward(FOOT_MS * 1.5, direction);
             strafeRight(1100, direction);
             rotateRight(400, direction);
 
@@ -116,10 +133,19 @@ public class KingBobAutonomus extends LinearOpMode {
         }
     }
 
+    private void tele() {
+        Pose2D pos = pinpoint.getPosition();
+        telemetry.addData("X", pos.getX(DistanceUnit.INCH));
+        telemetry.addData("Y", pos.getY(DistanceUnit.INCH));
+        telemetry.addData("Heading", pos.getHeading(AngleUnit.DEGREES));
+        telemetry.update();
+    }
+
     private void driveForTime(double strafe, double forward, double rotate, double durationMs, int direction) {
         long start = System.currentTimeMillis();
         while (opModeIsActive() && System.currentTimeMillis() - start < durationMs) {
             drive.driveCommand(strafe * direction, forward, rotate * direction);
+            tele();
             idle();
         }
 
@@ -153,6 +179,7 @@ public class KingBobAutonomus extends LinearOpMode {
     private void sleep(double durationMs) {
         long start = System.currentTimeMillis();
         while (opModeIsActive() && System.currentTimeMillis() - start < durationMs) {
+            tele();
             idle();
         }
 
@@ -172,9 +199,10 @@ public class KingBobAutonomus extends LinearOpMode {
 
             double remainingSec = remainingMs / 1000.0;
 
-            telemetry.addData("Pause", "%.1f seconds left", remainingSec);
-            telemetry.update();
+            //telemetry.addData("Pause", "%.1f seconds left", remainingSec);
+            //telemetry.update();
 
+            tele();
             idle();
         }
     }
@@ -189,6 +217,7 @@ public class KingBobAutonomus extends LinearOpMode {
         while (opModeIsActive() && System.currentTimeMillis() - start < durationMs) {
             double rotate = drive.getAutoRotate(0, teamTagId);  // re-sample tx each loop
             drive.driveCommand(0, 0, rotate);
+            tele();
             idle();
         }
 
@@ -196,6 +225,7 @@ public class KingBobAutonomus extends LinearOpMode {
     }
 
     private void stopAllMotors() {
+        tele();
         driveStop();
     }
 }
