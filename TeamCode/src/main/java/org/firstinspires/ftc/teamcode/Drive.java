@@ -45,8 +45,10 @@ public class Drive {
     private boolean selectPressedLast = false;
     private boolean rbPressedLast = false;
 
-    public Drive(HardwareMap hardwareMap, String driveSystem) {
-        limelight = hardwareMap.get(Limelight3A.class, "Limelight");
+    public Drive(HardwareMap hardwareMap, String driveSystem, boolean includeLimelight) {
+        if (includeLimelight) {
+            limelight = hardwareMap.get(Limelight3A.class, "Limelight");
+        }
 
         setupMotors(hardwareMap, driveSystem);
 
@@ -144,6 +146,10 @@ public class Drive {
     }
 
     public double getAutoRotate(double rotate, int teamTagId) {
+        if (limelight == null) {
+            return rotate;
+        }
+
         LLResult result = limelight.getLatestResult();
         //double rotate = AUTO_AIM_SPEED;
         if (result != null && result.isValid()) {

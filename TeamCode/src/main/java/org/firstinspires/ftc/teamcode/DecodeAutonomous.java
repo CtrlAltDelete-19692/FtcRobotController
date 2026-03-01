@@ -92,7 +92,7 @@ public class DecodeAutonomous extends CtrlAltDelOpMode {
             teamTagId = 24;
         }
 
-        drive = new Drive(hardwareMap, null);
+        drive = new Drive(hardwareMap, null, true);
         AprilTag aprilTag = new AprilTag(hardwareMap);
         aprilTag.pipelineSwitch(pipeline);
         launcher = new Launcher(hardwareMap, aprilTag);

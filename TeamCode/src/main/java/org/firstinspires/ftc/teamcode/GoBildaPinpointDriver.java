@@ -51,6 +51,7 @@ import java.util.Arrays;
 
 public class GoBildaPinpointDriver extends I2cDeviceSynchDevice<I2cDeviceSynchSimple> {
 
+    public static Object EncoderResolution;
     private int deviceStatus   = 0;
     private int loopTime       = 0;
     private int xEncoderValue  = 0;

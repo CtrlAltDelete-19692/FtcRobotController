@@ -23,7 +23,7 @@ public class KingBobAutonomus extends CtrlAltDelOpMode {
         // 1. Initialize settings (Check user guide for your specific pod's ticks/mm)
         //pinpoint.setXOffset(-120.0); // Lateral pod offset
         //pinpoint.setYOffset(-120.0); // Forward pod offset
-        //pinpoint.setEncoderResolution(GoBildaPinpointDriver.EncoderResolution.goBILDA_4_BAR_POD);
+        pinpoint.setEncoderResolution(GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_4_BAR_POD);
         //pinpoint.setEncoderDirections(GoBildaPinpointDriver.EncoderDirection.FORWARD, GoBildaPinpointDriver.EncoderDirection.FORWARD);
 
         pinpoint.resetPosAndIMU(); // Sets current position to (0,0,0)
@@ -36,10 +36,9 @@ public class KingBobAutonomus extends CtrlAltDelOpMode {
 
         int direction = -1; // We program our moves based on Red, and multiple by direction (-1) to reverse rotation / strafing for blue
         teamTagId = 20;
-        drive = new Drive(hardwareMap, "King Bob");
+        drive = new Drive(hardwareMap, "King Bob", false);
 
         waitForStart();
-
 
         if (opModeIsActive()) {
             pinpoint.update(); // Important: Call this every loop to refresh data
@@ -54,13 +53,21 @@ public class KingBobAutonomus extends CtrlAltDelOpMode {
             telemetry.addData("Heading", pos.getHeading(AngleUnit.DEGREES));
 
             dashboard.update(teamTagId);
+
+            pause(20000);
         }
     }
 
     private void driveForTime(double strafe, double forward, double rotate, double durationMs, int direction) {
         long start = System.currentTimeMillis();
         while (opModeIsActive() && System.currentTimeMillis() - start < durationMs) {
+            pinpoint.update();
+
             drive.driveCommand(strafe * direction, forward, rotate * direction);
+
+            telemetry.addData("X", pinpoint.getPosition().getX(DistanceUnit.INCH));
+            telemetry.addData("Y", pinpoint.getPosition().getY(DistanceUnit.INCH));
+            telemetry.update();
             idle();
         }
 
@@ -77,5 +84,22 @@ public class KingBobAutonomus extends CtrlAltDelOpMode {
 
     private void stopAllMotors() {
         driveStop();
+    }
+
+    private void pause(long durationMs) {
+        long start = System.currentTimeMillis();
+
+        while (opModeIsActive()) {
+            long elapsedMs   = System.currentTimeMillis() - start;
+            long remainingMs = durationMs - elapsedMs;
+
+            if (remainingMs <= 0) {
+                break;
+            }
+
+            double remainingSec = remainingMs / 1000.0;
+
+            idle();
+        }
     }
 }

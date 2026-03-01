@@ -12,7 +12,7 @@ public class KingBobTeleOp extends CtrlAltDelOpMode {
     public void runOpMode() throws InterruptedException {
         telemetry.speak("Good luck!");
 
-        drive = new Drive(hardwareMap, "King Bob");
+        drive = new Drive(hardwareMap, "King Bob", false);
 
         TelemetryDashboard dashboard = new TelemetryDashboard(telemetry, drive, null, null, null, null);
 
