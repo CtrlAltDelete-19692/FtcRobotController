@@ -1,12 +1,9 @@
 package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
-import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 
 @Autonomous(name = "DecodeAutonomous")
-public class DecodeAutonomous extends LinearOpMode {
-
-    private Hardware hw;
+public class DecodeAutonomous extends CtrlAltDelOpMode {
     private int teamTagId = 20;
 
     private Drive drive;
@@ -86,9 +83,6 @@ public class DecodeAutonomous extends LinearOpMode {
             telemetry.update();
         }
 
-        hw = new Hardware();
-        hw.setup(hardwareMap);
-
         int pipeline = 0; // Blue
         int direction = -1; // We program our moves based on Red, and multiple by direction (-1) to reverse rotation / strafing for blue
         teamTagId = 20;
@@ -97,11 +91,11 @@ public class DecodeAutonomous extends LinearOpMode {
             direction = 1;
             teamTagId = 24;
         }
-        hw.aprilTag.start();
-        hw.limelight.pipelineSwitch(pipeline);
 
-        drive = new Drive(hw, hardwareMap, null);
-        launcher = new Launcher(hw, hardwareMap);
+        drive = new Drive(hardwareMap, null);
+        AprilTag aprilTag = new AprilTag(hardwareMap);
+        aprilTag.pipelineSwitch(pipeline);
+        launcher = new Launcher(hardwareMap, aprilTag);
         intake = new Intake(hardwareMap);
 
         waitForStart();

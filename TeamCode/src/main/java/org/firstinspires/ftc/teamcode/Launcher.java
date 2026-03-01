@@ -9,7 +9,7 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 
 public class Launcher {
-    private final Hardware hw;
+    public AprilTag aprilTag;
     public CRServo loader;
 
     public DcMotorEx launcher;
@@ -26,9 +26,9 @@ public class Launcher {
     public int lvGoalDistanceAdjustment = 0;
     public boolean readyToLaunch = false;
 
-    public Launcher(Hardware hardware, HardwareMap hardwareMap) {
-        this.hw = hardware;
+    public Launcher(HardwareMap hardwareMap, AprilTag aprilTag) {
         setup(hardwareMap);
+        this.aprilTag = aprilTag;
     }
 
     public void setup(HardwareMap hardwareMap) {
@@ -49,7 +49,7 @@ public class Launcher {
 
     public void update(Gamepad gamepad, Gamepad gamepad2) {
         // Do not move the loader or launcher motors unless we are on the ground!
-        //boolean onGround = hw.leftViperSlideMotor.getCurrentPosition() <= 30 && hw.rightViperSlideMotor.getCurrentPosition() <= 30;
+        //boolean onGround = leftViperSlideMotor.getCurrentPosition() <= 30 && rightViperSlideMotor.getCurrentPosition() <= 30;
         //if (! onGround) {
         //    return;
         //}
@@ -59,7 +59,7 @@ public class Launcher {
     }
 
     private void loader(Gamepad gamepad, Gamepad gamepad2) {
-        if (hw.killMotors) {
+        if (CtrlAltDelOpMode.killMotors) {
             loader.setPower(0);
             return;
         }
@@ -76,8 +76,8 @@ public class Launcher {
     }
 
     private void launcher(Gamepad gamepad, Gamepad gamepad2) {
-        boolean oneController = gamepad2.right_trigger > Hardware.TRIGGER_DEADZONE && DecodeTeleOp.oneController;
-        boolean spinLauncher = gamepad.right_trigger > Hardware.TRIGGER_DEADZONE || oneController;
+        boolean oneController = gamepad2.right_trigger > CtrlAltDelOpMode.TRIGGER_DEADZONE && DecodeTeleOp.oneController;
+        boolean spinLauncher = gamepad.right_trigger > CtrlAltDelOpMode.TRIGGER_DEADZONE || oneController;
 
         if (spinLauncher && upToSpeed()) {
             readyToLaunch = true;
@@ -85,8 +85,8 @@ public class Launcher {
             readyToLaunch = false;
         }
 
-        //if (hw.leftViperSlideMotor.getCurrentPosition() > 30 || hw.rightViperSlideMotor.getCurrentPosition() > 30 || hw.killMotors) {
-        if (hw.killMotors) {
+        //if (leftViperSlideMotor.getCurrentPosition() > 30 || rightViperSlideMotor.getCurrentPosition() > 30 || killMotors) {
+        if (CtrlAltDelOpMode.killMotors) {
             launcher.setVelocity(0);
             return;
         }
@@ -105,7 +105,7 @@ public class Launcher {
         // Set launch velocity
         if (spinLauncher) {
             launcherVelocity = LAUNCHER_BASE_TICKS + lvManualAdjustment + lvGoalDistanceAdjustment;
-        } else if (gamepad.left_trigger > Hardware.TRIGGER_DEADZONE) {
+        } else if (gamepad.left_trigger > CtrlAltDelOpMode.TRIGGER_DEADZONE) {
             launcherVelocity = (LAUNCHER_BASE_TICKS + lvManualAdjustment + lvGoalDistanceAdjustment) * -1;
         }
 
@@ -129,8 +129,8 @@ public class Launcher {
     public int getGoalDistanceAdjustment() {
         int adjustment = -1;
 
-        if (hw.aprilTag.tagSeen && !Double.isNaN(hw.aprilTag.z)) {
-            double feet = hw.aprilTag.z * 3.28 - 1.5; // There are 3.28ft in a meter, and z is in meters. LAUNCHER_BASE_TICKS is tuned to 2ft, so we subtract 2.
+        if (aprilTag.tagSeen && !Double.isNaN(aprilTag.z)) {
+            double feet = aprilTag.z * 3.28 - 1.5; // There are 3.28ft in a meter, and z is in meters. LAUNCHER_BASE_TICKS is tuned to 2ft, so we subtract 2.
             if (feet > 0) {
                 adjustment = (int) (feet * TICKS_PER_FOOT);
                 adjustment = adjustment - (adjustment % 10); // Round to the 10 so slight variations in tag reads don't constantly toggle velocity

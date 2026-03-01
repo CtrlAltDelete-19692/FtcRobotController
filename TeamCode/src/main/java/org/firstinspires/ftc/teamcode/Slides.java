@@ -6,8 +6,6 @@ import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
 public class Slides {
-    private final Hardware hw;
-
     public DcMotorEx leftViperSlideMotor;
     public DcMotorEx rightViperSlideMotor;
 
@@ -20,12 +18,7 @@ public class Slides {
     private static final double HOLD_POWER = 0.5;
     private boolean backPressedLast = false;
 
-    public Slides(Hardware hardware, HardwareMap hardwareMap) {
-        this.hw = hardware;
-        setup(hardwareMap);
-    }
-
-    public void setup(HardwareMap hardwareMap) {
+    public Slides(HardwareMap hardwareMap) {
         leftViperSlideMotor = hardwareMap.get(DcMotorEx.class, "LeftViperMotor");
         leftViperSlideMotor.setDirection(DcMotor.Direction.FORWARD);
         leftViperSlideMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
@@ -91,7 +84,7 @@ public class Slides {
     private void setPositionToZero(Gamepad gamepad) {
         boolean backPressed = gamepad.back || gamepad.share;
         if (backPressed && !backPressedLast) {
-            //hw.setSlidesToZero();
+            //setSlidesToZero();
         }
         backPressedLast = backPressed;
     }

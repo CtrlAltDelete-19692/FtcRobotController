@@ -1,10 +1,14 @@
 package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.hardware.limelightvision.LLResult;
+import com.qualcomm.hardware.limelightvision.Limelight3A;
+import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.hardware.HardwareMap;
+import com.qualcomm.robotcore.hardware.IMU;
+import com.qualcomm.robotcore.hardware.VoltageSensor;
 import com.qualcomm.robotcore.util.Range;
 
 import org.firstinspires.ftc.robotcore.external.navigation.Orientation;
@@ -13,12 +17,16 @@ import org.firstinspires.ftc.robotcore.external.navigation.AxesOrder;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 
 public class Drive {
-    private Hardware hw;
-
     public DcMotor rightFrontMotor;
     public DcMotor rightBackMotor;
     public DcMotor leftFrontMotor;
     public DcMotor leftBackMotor;
+
+    public IMU imu;
+    public IMU.Parameters imuParams;
+
+    public VoltageSensor voltageSensor;
+    public Limelight3A limelight;
 
     public enum DriveMode { FIELD_CENTRIC, MANUAL }
     DriveMode driveMode = DriveMode.FIELD_CENTRIC; // Default drive mode
@@ -35,14 +43,17 @@ public class Drive {
     double RBM = 0;
 
     private boolean selectPressedLast = false;
+    private boolean rbPressedLast = false;
 
-    public Drive(Hardware hw, HardwareMap hardwareMap, String driveSystem) {
-        this.hw = hw;
+    public Drive(HardwareMap hardwareMap, String driveSystem) {
+        limelight = hardwareMap.get(Limelight3A.class, "Limelight");
 
-        setup(hardwareMap, driveSystem);
+        setupMotors(hardwareMap, driveSystem);
+
+        setupImu(hardwareMap);
     }
 
-    public void setup(HardwareMap hardwareMap, String driveSystem) {
+    public void setupMotors(HardwareMap hardwareMap, String driveSystem) {
         leftFrontMotor = hardwareMap.get(DcMotor.class, "LFM");
         DcMotor.Direction left = DcMotor.Direction.REVERSE;
         if (driveSystem.equals("King Bob")) {
@@ -64,15 +75,26 @@ public class Drive {
         rightBackMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
     }
 
-    public void update(Gamepad gamepad, Gamepad gamepad2, int teamTagId) {
-        if (hw == null) {
-            throw new IllegalStateException("Hardware not found during drive.update().");
-        }
+    public void setupImu(HardwareMap hardwareMap) {
+        imu = hardwareMap.get(IMU.class, "imu");
+        RevHubOrientationOnRobot orientationOnRobot = new RevHubOrientationOnRobot(
+                RevHubOrientationOnRobot.LogoFacingDirection.UP,
+                RevHubOrientationOnRobot.UsbFacingDirection.BACKWARD
+        );
+        imuParams = new IMU.Parameters(orientationOnRobot);
+        imu.initialize(imuParams);
 
-        driveSystem(gamepad, gamepad2, teamTagId);
+        voltageSensor = hardwareMap.voltageSensor.iterator().next();
     }
-    
-    private void driveSystem(Gamepad gamepad, Gamepad gamepad2, int teamTagId) {
+
+    public void update(Gamepad gamepad, Gamepad gamepad2, int teamTagId) {
+        // Reset heading
+        boolean rbPressed = gamepad.right_bumper;
+        if (rbPressed && !rbPressedLast) {
+            imu.resetYaw();
+        }
+        rbPressedLast = rbPressed;
+
         // Drive Mode
         boolean selectPressed = gamepad.back || gamepad.share;
         if (selectPressed && !selectPressedLast) {
@@ -86,9 +108,9 @@ public class Drive {
 
         // Speed modes
         double speedLimit = BASE_SPEED_LIMIT;
-        if (gamepad.left_trigger > Hardware.TRIGGER_DEADZONE) {
+        if (gamepad.left_trigger > CtrlAltDelOpMode.TRIGGER_DEADZONE) {
             speedLimit = BASE_SPEED_LIMIT * SLOW_MODE_FACTOR;
-        } else if (gamepad.right_trigger > Hardware.TRIGGER_DEADZONE) {
+        } else if (gamepad.right_trigger > CtrlAltDelOpMode.TRIGGER_DEADZONE) {
             speedLimit = Range.clip(BASE_SPEED_LIMIT + gamepad.right_trigger * TURBO_EXTRA_FACTOR, 0.0, 1.0);
         }
 
@@ -97,12 +119,12 @@ public class Drive {
         double rotate = gamepad.right_stick_x;
 
         // Create small deadzone to accommodate janky / old controllers
-        if (Math.abs(strafe) < Hardware.STICK_DEADZONE) strafe = 0;
-        if (Math.abs(forward) < Hardware.STICK_DEADZONE) forward = 0;
-        if (Math.abs(rotate) < Hardware.STICK_DEADZONE) rotate = 0;
+        if (Math.abs(strafe) < CtrlAltDelOpMode.STICK_DEADZONE) strafe = 0;
+        if (Math.abs(forward) < CtrlAltDelOpMode.STICK_DEADZONE) forward = 0;
+        if (Math.abs(rotate) < CtrlAltDelOpMode.STICK_DEADZONE) rotate = 0;
 
         if (driveMode == DriveMode.FIELD_CENTRIC) {
-            double headingRad = -hw.imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.RADIANS);
+            double headingRad = -imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.RADIANS);
     
             double tempX = strafe * Math.cos(headingRad) - forward * Math.sin(headingRad);
             double tempY = strafe * Math.sin(headingRad) + forward * Math.cos(headingRad);
@@ -113,8 +135,8 @@ public class Drive {
 
         strafe = strafe * STRAFE_CORRECTION; // Counteract imperfect strafing
 
-        boolean oneController = gamepad.right_trigger > Hardware.TRIGGER_DEADZONE && DecodeTeleOp.oneController;
-        if (gamepad2.right_trigger > Hardware.TRIGGER_DEADZONE || oneController) {
+        boolean oneController = gamepad.right_trigger > CtrlAltDelOpMode.TRIGGER_DEADZONE && DecodeTeleOp.oneController;
+        if (gamepad2.right_trigger > CtrlAltDelOpMode.TRIGGER_DEADZONE || oneController) {
             rotate = getAutoRotate(rotate, teamTagId);
         }
 
@@ -122,7 +144,7 @@ public class Drive {
     }
 
     public double getAutoRotate(double rotate, int teamTagId) {
-        LLResult result = hw.limelight.getLatestResult();
+        LLResult result = limelight.getLatestResult();
         //double rotate = AUTO_AIM_SPEED;
         if (result != null && result.isValid()) {
             double tx = result.getTx();
@@ -155,8 +177,8 @@ public class Drive {
         RBM = Range.clip(RBM / max, -speedLimit, speedLimit);
 
         // Do not allow the wheels to move unless we are on the ground or while we kill the motors
-        //if (hw.leftViperSlideMotor.getCurrentPosition() > 30 || hw.rightViperSlideMotor.getCurrentPosition() > 30 || hw.killMotors) {
-        if (hw.killMotors) {
+        //if (leftViperSlideMotor.getCurrentPosition() > 30 || rightViperSlideMotor.getCurrentPosition() > 30 || CtrlAltDelOpMode.killMotors) {
+        if (CtrlAltDelOpMode.killMotors) {
             LFM = 0;
             RFM = 0;
             LBM = 0;
@@ -180,4 +202,8 @@ public class Drive {
     public double[] getWheelPowers() {
         return new double[] { LFM, RFM, LBM, RBM };
     }
+
+//    public double getBatteryVoltage() {
+//        return voltageSensor.getVoltage();
+//    }
 }

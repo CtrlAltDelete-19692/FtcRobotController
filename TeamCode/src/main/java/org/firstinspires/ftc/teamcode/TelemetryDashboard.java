@@ -10,21 +10,29 @@ import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 public class TelemetryDashboard {
 
     private final Telemetry telemetry;
-    private final Hardware hw;
+    private Drive drive;
+    private Launcher launcher;
+    private AprilTag aprilTag;
+    private Intake intake;
+    private Slides slides;
 
     private boolean debugEnabled = true;
     private boolean speechEnabled = true;
 
     private String lastSpokenMode = "";
 
-    public TelemetryDashboard(Telemetry telemetry, Hardware hardware) {
+    public TelemetryDashboard(Telemetry telemetry, Drive drive, Launcher launcher, AprilTag aprilTag, Intake intake, Slides slides) {
         this.telemetry = telemetry;
-        this.hw = hardware;
-
         telemetry.setMsTransmissionInterval(50);
+
+        this.drive = drive;
+        this.launcher = launcher;
+        this.aprilTag = aprilTag;
+        this.intake = intake;
+        this.slides = slides;
     }
 
-    public void update(int teamTagId, Drive drive, Launcher launcher, Intake intake, Slides slides) {
+    public void update(int teamTagId) {
         String teamColor = "Unknown Team";
         if (teamTagId == 20) {
             teamColor = "\uD83D\uDFE6 Blue";
@@ -33,14 +41,16 @@ public class TelemetryDashboard {
         }
 
         String driveMode = "Unknown Drive Mode";
-        if (drive.getDriveMode() == Drive.DriveMode.FIELD_CENTRIC) {
-            driveMode = "\uD83E\uDDED " + drive.getDriveMode();
-        } else if(drive.getDriveMode() == Drive.DriveMode.MANUAL) {
-            driveMode = "\uD83C\uDFAE " + drive.getDriveMode();
+        if (drive != null) {
+            if (drive.getDriveMode() == Drive.DriveMode.FIELD_CENTRIC) {
+                driveMode = "\uD83E\uDDED " + drive.getDriveMode();
+            } else if (drive.getDriveMode() == Drive.DriveMode.MANUAL) {
+                driveMode = "\uD83C\uDFAE " + drive.getDriveMode();
+            }
         }
 
         String motors = "Motors";
-        if (hw.killMotors) {
+        if (CtrlAltDelOpMode.killMotors) {
             motors = "❌ " + motors;
         } else {
             motors = "✅ " + motors;
@@ -58,38 +68,40 @@ public class TelemetryDashboard {
                     launcherIcon = "✅";
                 }
                 telemetry.addLine(String.format("Launcher: %.0f %s", launcher.launcher.getVelocity(), launcherIcon));
-                //telemetry.addLine(String.format("Target      %.0f (Tag: %d, Manual: %d)", launcher.launcherVelocity, launcher.lvGoalDistanceAdjustment, launcher.lvManualAdjustment));
+                telemetry.addLine(String.format("Target      %.0f (Tag: %d, Manual: %d)", launcher.launcherVelocity, launcher.lvGoalDistanceAdjustment, launcher.lvManualAdjustment));
             }
 
             if (intake != null) {
                 telemetry.addLine(String.format("Pickup Power: %.0f", intake.pickupMotor.getPower()));
+                telemetry.addLine();
             }
-            telemetry.addLine();
 
-            LLResult res = hw.limelight != null ? hw.limelight.getLatestResult() : null;
-            int pipeline = res != null ? res.getPipelineIndex() : -1;
-            //telemetry.addData("Pipeline", pipeline);
-            /*if (hw.aprilTag.tagSeen) {
-                //telemetry.addData("Tag X, Z", "%.2f, %.2f", hw.aprilTag.x, hw.aprilTag.z);
-                telemetry.addLine(String.format("Tag found ✅, %.2f ft", hw.aprilTag.zFeet));
-            } else {
-                telemetry.addLine("Tag not found ❌");
+            if (aprilTag != null) {
+                LLResult res = aprilTag.limelight != null ? aprilTag.limelight.getLatestResult() : null;
+                if (aprilTag.tagSeen) {
+                    //telemetry.addData("Tag X, Z", "%.2f, %.2f", aprilTag.x, aprilTag.z);
+                    telemetry.addLine(String.format("Tag found ✅, %.2f ft", aprilTag.zFeet));
+                } else {
+                    telemetry.addLine("Tag not found ❌");
+                }
+                telemetry.addLine();
             }
-            telemetry.addLine();*/
 
             if (slides != null) {
                 telemetry.addData("Slides L / R", "%d / %d", slides.leftViperSlideMotor.getCurrentPosition(), slides.rightViperSlideMotor.getCurrentPosition());
             }
 
-            double headingDeg = hw.imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
-            telemetry.addData("Heading", "%.1f deg", headingDeg);
-        }
+            if (drive != null) {
+                double headingDeg = drive.imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
+                telemetry.addData("Heading", "%.1f deg", headingDeg);
 
-        if (speechEnabled) {
-            String modeName = drive.getDriveMode().name().replace("_", " ").toLowerCase();
-            if (!modeName.equals(lastSpokenMode)) {
-                telemetry.speak(modeName);
-                lastSpokenMode = modeName;
+                if (speechEnabled) {
+                    String modeName = drive.getDriveMode().name().replace("_", " ").toLowerCase();
+                    if (!modeName.equals(lastSpokenMode)) {
+                        telemetry.speak(modeName);
+                        lastSpokenMode = modeName;
+                    }
+                }
             }
         }
 

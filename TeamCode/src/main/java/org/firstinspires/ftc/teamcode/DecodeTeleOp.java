@@ -1,82 +1,73 @@
 package org.firstinspires.ftc.teamcode;
 
-import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-import com.qualcomm.robotcore.hardware.DcMotor;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 
 @TeleOp(name = "DecodeTeleOp")
 
-public class DecodeTeleOp extends LinearOpMode {
+public class DecodeTeleOp extends CtrlAltDelOpMode {
+    private Drive drive;
+    private Launcher launcher;
+    private AprilTag aprilTag;
+    private Intake intake;
+    private Slides slides;
+    private Leds leds;
 
-    private Hardware hw;
     private int teamTagId = 20;
     private int pipeline = 0;
+
     public static boolean oneController = false; // Set to true for testing with one controller, set false for competition
+
     private boolean xPressedLast = false;
-    private boolean rbPressedLast = false;
 
     @Override
     public void runOpMode() throws InterruptedException {
         telemetry.speak("Good luck!");
 
-        hw = new Hardware();
-        hw.setup(hardwareMap);
+        drive = new Drive(hardwareMap, null);
+        aprilTag = new AprilTag(hardwareMap);
+        aprilTag.pipelineSwitch(pipeline);
+        launcher = new Launcher(hardwareMap, aprilTag);
+        intake = new Intake(hardwareMap);
+        slides = new Slides(hardwareMap);
+        leds = new Leds(hardwareMap, aprilTag, launcher);
 
-        hw.aprilTag.start();
-        hw.limelight.pipelineSwitch(pipeline);
-
-        Drive drive = new Drive(hw, hardwareMap, null);
-        Launcher launcher = new Launcher(hw, hardwareMap);
-        Intake intake = new Intake(hardwareMap);
-        Slides slides = new Slides(hw, hardwareMap);
-        Leds leds = new Leds(hw);
-
-        TelemetryDashboard dashboard = new TelemetryDashboard(telemetry, hw);
+        TelemetryDashboard dashboard = new TelemetryDashboard(telemetry, drive, launcher, aprilTag, intake, slides);
 
         while (!isStarted()) {
             if (gamepad1.x) changeTeam(true);
             if (gamepad1.b) changeTeam(false);
 
-            hw.aprilTag.update();
+            aprilTag.update();
 
-            dashboard.update(teamTagId, drive, launcher, intake, slides);
+            dashboard.update(teamTagId);
         }
 
         waitForStart();
 
-        hw.imu.resetYaw();
+        drive.imu.resetYaw();
 
         while (opModeIsActive()) {
-            hw.aprilTag.update();
+            aprilTag.update();
             drive.update(gamepad1, gamepad2, teamTagId);
             slides.update(gamepad2);
             launcher.update(gamepad2, gamepad1);
-            leds.update(launcher);
+            intake.update(gamepad1, gamepad2);
+            leds.update();
 
             if (gamepad1.x) changeTeam(true);
             if (gamepad1.b) changeTeam(false);
 
-            // Reset heading
-            boolean rbPressed = gamepad1.right_bumper;
-            if (rbPressed && !rbPressedLast) {
-                hw.imu.resetYaw();
-            }
-            rbPressedLast = rbPressed;
-
             // Kill Motors for loading
             boolean xPressed = gamepad1.a;
             if (xPressed && !xPressedLast) {
-                //hw.toggleMotors();
+                //toggleMotors();
             }
             xPressedLast = xPressed;
 
-            // Intake
-            intake.update(gamepad1, gamepad2);
-
             // Telemetry
-            dashboard.update(teamTagId, drive, launcher, intake, slides);
+            dashboard.update(teamTagId);
             idle();
         }
     }
@@ -92,6 +83,6 @@ public class DecodeTeleOp extends LinearOpMode {
             telemetry.speak("Red team");
         }
 
-        hw.limelight.pipelineSwitch(pipeline);
+        aprilTag.pipelineSwitch(pipeline);
     }
 }
