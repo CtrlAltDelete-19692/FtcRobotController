@@ -67,7 +67,12 @@ public class Launcher {
         if (loader != null) {
             boolean oneController = gamepad2.a && DecodeTeleOp.oneController;
             boolean oneControllerB = gamepad2.b && DecodeTeleOp.oneController;
-            if (((gamepad.a || oneController) && readyToLaunch) || (gamepad.b || oneControllerB)) {
+            //if (((gamepad.a || oneController) && readyToLaunch) || (gamepad.b || oneControllerB)) {
+            if (gamepad.b) {
+                loader.setDirection(CRServo.Direction.REVERSE);
+                loader.setPower(LOADER_POWER);
+            } else if (gamepad.a) {
+                loader.setDirection(CRServo.Direction.FORWARD);
                 loader.setPower(LOADER_POWER);
             } else {
                 loader.setPower(0);

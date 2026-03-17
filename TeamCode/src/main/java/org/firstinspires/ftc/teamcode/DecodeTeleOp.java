@@ -25,7 +25,7 @@ public class DecodeTeleOp extends CtrlAltDelOpMode {
     public void runOpMode() throws InterruptedException {
         telemetry.speak("Good luck!");
 
-        drive = new Drive(hardwareMap, null, true);
+        drive = new Drive(hardwareMap, "", true);
         aprilTag = new AprilTag(hardwareMap);
         aprilTag.pipelineSwitch(pipeline);
         launcher = new Launcher(hardwareMap, aprilTag);
@@ -60,7 +60,7 @@ public class DecodeTeleOp extends CtrlAltDelOpMode {
             if (gamepad1.b) changeTeam(false);
 
             // Kill Motors for loading
-            boolean xPressed = gamepad1.a;
+            boolean xPressed = gamepad1.x;
             if (xPressed && !xPressedLast) {
                 //toggleMotors();
             }

@@ -60,7 +60,7 @@ public class TelemetryDashboard {
         telemetry.addLine();
 
         if (debugEnabled) {
-            if (launcher != null) {
+            if (launcher.launcher != null) {
                 String launcherIcon = "\uD83C\uDF00";
                 if (launcher.launcherVelocity <= 0) {
                     launcherIcon = "";
@@ -71,8 +71,12 @@ public class TelemetryDashboard {
                 telemetry.addLine(String.format("Target      %.0f (Tag: %d, Manual: %d)", launcher.launcherVelocity, launcher.lvGoalDistanceAdjustment, launcher.lvManualAdjustment));
             }
 
+            if (launcher.loader != null) {
+                telemetry.addLine(String.format("Loader: %.0f%%", launcher.loader.getPower() * 100));
+            }
+
             if (intake != null) {
-                telemetry.addLine(String.format("Pickup Power: %.0f", intake.pickupMotor.getPower()));
+                telemetry.addLine(String.format("Pickup: %.1f%%", intake.pickupMotor.getPower() * 100));
                 telemetry.addLine();
             }
 
