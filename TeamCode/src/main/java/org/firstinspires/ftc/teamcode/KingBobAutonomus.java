@@ -43,16 +43,34 @@ public class KingBobAutonomus extends CtrlAltDelOpMode {
         if (opModeIsActive()) {
             pinpoint.update(); // Important: Call this every loop to refresh data
 
-            driveForward(415, direction); // Roughly 1ft
+            //driveForward(415, direction); // Roughly 1ft
+
+            //driveForTime(0, 0, 1, 2000, direction);
+            while (opModeIsActive() ) {
+                Pose2D pos = pinpoint.getPosition();
+                if (pos.getX(DistanceUnit.INCH) > -10){
+                    drive.driveCommand(0, 1, 0);
+                }else{
+                    if (pos.getY(DistanceUnit.INCH) < 10){
+                        drive.driveCommand(1, 0, 0);
+                    }else{
+                        driveStop();
+                    }
+                }
+                telemetry.addData("X", pos.getX(DistanceUnit.INCH));
+                telemetry.addData("Y", pos.getY(DistanceUnit.INCH));
+                telemetry.addData("Heading", pos.getHeading(AngleUnit.DEGREES));
+
+                pinpoint.update();
+                dashboard.update(teamTagId);
+
+
+            }
 
             stopAllMotors();
 
-            Pose2D pos = pinpoint.getPosition();
-            telemetry.addData("X", pos.getX(DistanceUnit.INCH));
-            telemetry.addData("Y", pos.getY(DistanceUnit.INCH));
-            telemetry.addData("Heading", pos.getHeading(AngleUnit.DEGREES));
 
-            dashboard.update(teamTagId);
+            //dashboard.update(teamTagId);
 
             pause(20000);
         }

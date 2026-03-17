@@ -60,7 +60,7 @@ public class TelemetryDashboard {
         telemetry.addLine();
 
         if (debugEnabled) {
-            if (launcher.launcher != null) {
+            if (launcher != null) {
                 String launcherIcon = "\uD83C\uDF00";
                 if (launcher.launcherVelocity <= 0) {
                     launcherIcon = "";
@@ -71,7 +71,7 @@ public class TelemetryDashboard {
                 telemetry.addLine(String.format("Target      %.0f (Tag: %d, Manual: %d)", launcher.launcherVelocity, launcher.lvGoalDistanceAdjustment, launcher.lvManualAdjustment));
             }
 
-            if (launcher.loader != null) {
+            if (launcher != null) {
                 telemetry.addLine(String.format("Loader: %.0f%%", launcher.loader.getPower() * 100));
             }
 
