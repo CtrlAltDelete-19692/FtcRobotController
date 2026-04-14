@@ -28,11 +28,12 @@ public class KingBobAutonomous extends CtrlAltDelOpMode {
         pinpoint.resetPosAndIMU(); // Sets current position to (0,0,0)
 
         drive = new Drive(hardwareMap, "King Bob", false);
+        drive.setDriveMode(Drive.DriveMode.FIELD_CENTRIC);
         TelemetryDashboard dashboard = new TelemetryDashboard(telemetry, drive, null, null, null, null);
 
-        while (!isStarted()) {
-            dashboard.update(teamTagId);
-        }
+//        while (!isStarted()) {
+//            dashboard.update(teamTagId);
+//        }
 
         //int direction = -1; // We program our moves based on Red, and multiple by direction (-1) to reverse rotation / strafing for blue
         //teamTagId = 20;
@@ -42,13 +43,26 @@ public class KingBobAutonomous extends CtrlAltDelOpMode {
         if (opModeIsActive()) {
             pinpoint.update();
 
-            driveToPosition(12, 12);
+            driveToPosition(12, 0);
+            driveToPosition(0, 0);
+            driveToPosition(0, 8);
+            driveToPosition(0, 0);
+            driveToPosition(12, 8);
+            driveToPosition(0, 0);
+            driveToPosition(-8, -8);
+            driveToPosition(0, 0);
+            //driveToPosition(-12, -8);
+            //driveToPosition(0, 12);
 
-            driveToPosition(0, -12);
+            //while(opModeIsActive()) {
+            //    drive.driveCommand(0, 10, 0);
+            //}
 
-            driveToPosition(-12, 0);
+            //driveToPosition(0, -12);
 
-            dashboard.update(teamTagId);
+            //driveToPosition(-12, 0);
+
+            //dashboard.update(teamTagId);
 
             stopAllMotors();
         }
@@ -78,9 +92,9 @@ public class KingBobAutonomous extends CtrlAltDelOpMode {
     private void driveToPosition(double targetX, double targetY) {
         final double buffer = 2.0; // inches
         final double minSpeed = 0.15;
-        final double maxSpeed = 1.0;
+        final double maxSpeed = 0.2;
         final double kP = 0.05; // proportional gain
-        final long timeoutMs = 4000; // safety timeout
+        final long timeoutMs = 10000; // safety timeout
 
         long startTime = System.currentTimeMillis();
 
@@ -96,28 +110,43 @@ public class KingBobAutonomous extends CtrlAltDelOpMode {
             pinpoint.update();
             Pose2D pos = pinpoint.getPosition();
 
-            double currentX = pos.getX(DistanceUnit.INCH);
+            double currentX = pos.getX(DistanceUnit.INCH) * -1; // Flip since it's mounted "backwards"
             double currentY = pos.getY(DistanceUnit.INCH);
 
             // Error from target
             double xError = targetX - currentX;
             double yError = targetY - currentY;
 
-            double forward = 0;
             double strafe = 0;
+            double forward = 0;
 
             // Proportional forward control with deadband and min/max speed clamp
+//            if (Math.abs(xError) > buffer) {
+//                double commandedSpeed = Math.abs(xError) * kP;
+//                commandedSpeed = Math.max(minSpeed, Math.min(maxSpeed, commandedSpeed));
+//                forward = Math.signum(xError) * commandedSpeed;
+//            }
+//
+//            // Proportional strafe control with deadband and min/max speed clamp
+//            if (Math.abs(yError) > buffer) {
+//                double commandedSpeed = Math.abs(yError) * kP;
+//                commandedSpeed = Math.max(minSpeed, Math.min(maxSpeed, commandedSpeed));
+//                strafe = Math.signum(yError) * commandedSpeed;
+//            }
+
+
+            int xDirection = xError > 0 ? 1 : -1;
             if (Math.abs(xError) > buffer) {
-                double commandedSpeed = Math.abs(xError) * kP;
-                commandedSpeed = Math.max(minSpeed, Math.min(maxSpeed, commandedSpeed));
-                forward = Math.signum(xError) * commandedSpeed;
+                strafe = maxSpeed * xDirection;
+            } else {
+                strafe = 0;
             }
 
-            // Proportional strafe control with deadband and min/max speed clamp
+            int yDirection = yError > 0 ? 1 : -1;
             if (Math.abs(yError) > buffer) {
-                double commandedSpeed = Math.abs(yError) * kP;
-                commandedSpeed = Math.max(minSpeed, Math.min(maxSpeed, commandedSpeed));
-                strafe = Math.signum(yError) * commandedSpeed;
+                forward = maxSpeed * yDirection;
+            } else {
+                forward = 0;
             }
 
             // Stop once both axes are within tolerance
@@ -130,7 +159,7 @@ public class KingBobAutonomous extends CtrlAltDelOpMode {
             telemetry.addLine(String.format("Target:  (%.1f, %.1f)", targetX, targetY));
             telemetry.addLine(String.format("Current: (%.1f, %.1f)", currentX, currentY));
             telemetry.addLine(String.format("Error:   (%.1f, %.1f)", xError, yError));
-            telemetry.addLine(String.format("Drive:   F %.2f | S %.2f", forward, strafe));
+            telemetry.addLine(String.format("Drive:   S %.1f | F %.1f", strafe, forward));
             telemetry.update();
 
             idle();

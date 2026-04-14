@@ -204,6 +204,10 @@ public class Drive {
     public DriveMode getDriveMode() {
         return driveMode;
     }
+
+    public void setDriveMode(DriveMode driveMode) {
+        this.driveMode = driveMode;
+    }
     
     public double[] getWheelPowers() {
         return new double[] { LFM, RFM, LBM, RBM };

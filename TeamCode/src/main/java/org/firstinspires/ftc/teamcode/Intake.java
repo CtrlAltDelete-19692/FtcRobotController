@@ -8,7 +8,8 @@ public class Intake {
 
     public DcMotor pickupMotor;
 
-    public static final double INTAKE_POWER = 1.0;  // Default power for pickup intake, 0 to 1
+    public static final double INTAKE_POWER = 0.8;  // Default power for pickup intake, 0 to 1
+    public static final double INTAKE_IDLE_POWER = 0.6;  // Default power for pickup intake while idle, 0 to 1
 
     public Intake(HardwareMap hardwareMap) {
         pickupMotor = hardwareMap.get(DcMotor.class, "PM");
@@ -20,7 +21,7 @@ public class Intake {
             pickupMotor.setPower(INTAKE_POWER);
         }
         else {
-            pickupMotor.setPower(0);
+            pickupMotor.setPower(INTAKE_IDLE_POWER);
         }
     }
 }
