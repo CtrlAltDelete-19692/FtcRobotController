@@ -2,6 +2,7 @@ package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
 
@@ -43,24 +44,24 @@ public class KingBobAutonomous extends CtrlAltDelOpMode {
         if (opModeIsActive()) {
             pinpoint.update();
 
-            driveToPosition(12, 0);
-            driveToPosition(0, 0);
-            driveToPosition(0, 8);
-            driveToPosition(0, 0);
-            driveToPosition(12, 8);
-            driveToPosition(0, 0);
-            driveToPosition(-8, -8);
-            driveToPosition(0, 0);
-            //driveToPosition(-12, -8);
-            //driveToPosition(0, 12);
+            // Move into shooting position
+            goToPose(-8, -8);
+            turnToHeading(45);
+            // shoot(3);
+            sleep(3000);
 
-            //while(opModeIsActive()) {
-            //    drive.driveCommand(0, 10, 0);
-            //}
+            // Gather 3 new artifacts
+            turnToHeading(90);
+            goToPose(-12, -8); // Backup
+            goToPose(-12, -12); // Strafe right
+            goToPose(0, -12); // Move forward to collect artifacts
+            sleep(3000);
 
-            //driveToPosition(0, -12);
-
-            //driveToPosition(-12, 0);
+            // Move into shooting position
+            goToPose(-8, -8);
+            turnToHeading(45);
+            // shoot(3)
+            sleep(3000);
 
             //dashboard.update(teamTagId);
 
@@ -89,19 +90,19 @@ public class KingBobAutonomous extends CtrlAltDelOpMode {
         driveStop();
     }
 
-    private void driveToPosition(double targetX, double targetY) {
+    private void goToPose(double targetX, double targetY) {
         final double buffer = 2.0; // inches
         final double minSpeed = 0.15;
-        final double maxSpeed = 0.2;
+        final double maxSpeed = 0.5;
         final double kP = 0.05; // proportional gain
-        final long timeoutMs = 10000; // safety timeout
+        final long timeoutMs = 5000; // safety timeout
 
         long startTime = System.currentTimeMillis();
 
         while (opModeIsActive()) {
             // Safety timeout so we do not drive forever if odometry is wrong
             if (System.currentTimeMillis() - startTime > timeoutMs) {
-                telemetry.addLine("driveToPosition timed out");
+                telemetry.addLine("goToPose timed out");
                 telemetry.update();
                 break;
             }
@@ -120,31 +121,34 @@ public class KingBobAutonomous extends CtrlAltDelOpMode {
             double strafe = 0;
             double forward = 0;
 
-            // Proportional forward control with deadband and min/max speed clamp
-//            if (Math.abs(xError) > buffer) {
-//                double commandedSpeed = Math.abs(xError) * kP;
-//                commandedSpeed = Math.max(minSpeed, Math.min(maxSpeed, commandedSpeed));
-//                forward = Math.signum(xError) * commandedSpeed;
-//            }
-//
-//            // Proportional strafe control with deadband and min/max speed clamp
-//            if (Math.abs(yError) > buffer) {
-//                double commandedSpeed = Math.abs(yError) * kP;
-//                commandedSpeed = Math.max(minSpeed, Math.min(maxSpeed, commandedSpeed));
-//                strafe = Math.signum(yError) * commandedSpeed;
-//            }
-
-
             int xDirection = xError > 0 ? 1 : -1;
             if (Math.abs(xError) > buffer) {
-                strafe = maxSpeed * xDirection;
+                strafe = Math.abs(xError) * kP;
+
+                if (strafe < minSpeed) {
+                    strafe = minSpeed;
+                }
+                if (strafe > maxSpeed) {
+                    strafe = maxSpeed;
+                }
+
+                strafe *= xDirection;
             } else {
                 strafe = 0;
             }
 
             int yDirection = yError > 0 ? 1 : -1;
             if (Math.abs(yError) > buffer) {
-                forward = maxSpeed * yDirection;
+                forward = Math.abs(yError) * kP;
+
+                if (forward < minSpeed) {
+                    forward = minSpeed;
+                }
+                if (forward > maxSpeed) {
+                    forward = maxSpeed;
+                }
+
+                forward *= yDirection;
             } else {
                 forward = 0;
             }
@@ -160,6 +164,77 @@ public class KingBobAutonomous extends CtrlAltDelOpMode {
             telemetry.addLine(String.format("Current: (%.1f, %.1f)", currentX, currentY));
             telemetry.addLine(String.format("Error:   (%.1f, %.1f)", xError, yError));
             telemetry.addLine(String.format("Drive:   S %.1f | F %.1f", strafe, forward));
+            telemetry.update();
+
+            idle();
+        }
+
+        driveStop();
+    }
+
+    private void turnToHeading(double targetHeading) {
+        final double headingBuffer = 3.0; // degrees
+        final double minTurn = 0.12;
+        final double maxTurn = 0.35;
+        final double headingKP = 0.01;
+        final long timeoutMs = 4000;
+
+        long startTime = System.currentTimeMillis();
+
+        while (opModeIsActive()) {
+            // Safety timeout
+            if (System.currentTimeMillis() - startTime > timeoutMs) {
+                telemetry.addLine("turnToHeading timed out");
+                telemetry.update();
+                break;
+            }
+
+            // Update odometry
+            pinpoint.update();
+            Pose2D pos = pinpoint.getPosition();
+
+            double currentHeading = pos.getHeading(AngleUnit.DEGREES) * -1; // Flip
+
+            // Normalize heading error to -180 to 180
+            double headingError = targetHeading - currentHeading;
+
+            while (headingError > 180) {
+                headingError -= 360;
+            }
+
+            while (headingError < -180) {
+                headingError += 360;
+            }
+
+            double turn = 0;
+
+            int turnDirection = headingError > 0 ? 1 : -1;
+            if (Math.abs(headingError) > headingBuffer) {
+                turn = Math.abs(headingError) * headingKP;
+
+                if (turn < minTurn) {
+                    turn = minTurn;
+                }
+
+                if (turn > maxTurn) {
+                    turn = maxTurn;
+                }
+
+                turn *= turnDirection;
+            } else {
+                turn = 0;
+            }
+
+            if (turn == 0) {
+                break;
+            }
+
+            drive.driveCommand(0, 0, turn);
+
+            telemetry.addLine(String.format("Target Heading:  %.1f", targetHeading));
+            telemetry.addLine(String.format("Current Heading: %.1f", currentHeading));
+            telemetry.addLine(String.format("Heading Error:   %.1f", headingError));
+            telemetry.addLine(String.format("Turn:            %.2f", turn));
             telemetry.update();
 
             idle();
