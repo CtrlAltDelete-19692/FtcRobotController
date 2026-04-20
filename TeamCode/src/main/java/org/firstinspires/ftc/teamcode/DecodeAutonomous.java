@@ -95,7 +95,7 @@ public class DecodeAutonomous extends CtrlAltDelOpMode {
         drive = new Drive(hardwareMap, "", true);
         AprilTag aprilTag = new AprilTag(hardwareMap);
         aprilTag.pipelineSwitch(pipeline);
-        launcher = new Launcher(hardwareMap, aprilTag);
+        launcher = new Launcher(hardwareMap, aprilTag, telemetry);
         intake = new Intake(hardwareMap);
 
         waitForStart();

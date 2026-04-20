@@ -28,7 +28,7 @@ public class DecodeTeleOp extends CtrlAltDelOpMode {
         drive = new Drive(hardwareMap, "", true);
         aprilTag = new AprilTag(hardwareMap);
         aprilTag.pipelineSwitch(pipeline);
-        launcher = new Launcher(hardwareMap, aprilTag);
+        launcher = new Launcher(hardwareMap, aprilTag, telemetry);
         intake = new Intake(hardwareMap);
         slides = new Slides(hardwareMap);
         leds = new Leds(hardwareMap, aprilTag, launcher);

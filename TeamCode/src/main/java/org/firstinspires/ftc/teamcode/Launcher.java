@@ -4,12 +4,16 @@ import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 
+import org.firstinspires.ftc.robotcore.external.Telemetry;
+
 public class Launcher {
     public AprilTag aprilTag;
+    public Telemetry telemetry;
     public CRServo loader;
 
     public DcMotorEx launcher;
@@ -17,6 +21,7 @@ public class Launcher {
     private static final double LOADER_POWER = 0.5; // Between 0 and 1
     private static final double LAUNCHER_IDLE_TICKS = 500;  // maintains spin
     public static final double LAUNCHER_BASE_TICKS = 1050;  // full shooting speed from 2ft
+    public static final double LAUNCHER_MINIMUM_TICKS = 700;  // full shooting speed from 2ft
     public static final double TICKS_PER_FOOT = 60;  // ticks to add for each extra foot of distance, based on testing
     public static final int LAUNCHER_TICKS_INCREMENTS = 10;  // When manually adjusting launcher, increment / decrement by this amount
     public static final double LAUNCHER_THRESHOLD = 0.94;  // What percentage of launcher set velocity is required to shoot
@@ -25,10 +30,25 @@ public class Launcher {
     public int lvManualAdjustment = 0;
     public int lvGoalDistanceAdjustment = 0;
     public boolean readyToLaunch = false;
+    boolean lastLaunch = false;
+    boolean runningSequence = false;
 
-    public Launcher(HardwareMap hardwareMap, AprilTag aprilTag) {
+    long actionStartTime = 0;
+    private boolean lastLeftBumper = false;
+    private boolean lastRightBumper = false;
+
+    enum ServoState {
+        IDLE,
+        GOING_OUT,
+        RETURNING
+    }
+
+    ServoState servoState = ServoState.IDLE;
+
+    public Launcher(HardwareMap hardwareMap, AprilTag aprilTag, Telemetry telemetry) {
         setup(hardwareMap);
         this.aprilTag = aprilTag;
+        this.telemetry = telemetry;
     }
 
     public void setup(HardwareMap hardwareMap) {
@@ -67,15 +87,43 @@ public class Launcher {
         if (loader != null) {
             boolean oneController = gamepad2.a && DecodeTeleOp.oneController;
             boolean oneControllerB = gamepad2.b && DecodeTeleOp.oneController;
-            //if (((gamepad.a || oneController) && readyToLaunch) || (gamepad.b || oneControllerB)) {
-            if (gamepad.b) {
-                loader.setDirection(CRServo.Direction.REVERSE);
-                loader.setPower(LOADER_POWER);
-            } else if (gamepad.a) {
-                loader.setDirection(CRServo.Direction.FORWARD);
-                loader.setPower(LOADER_POWER);
-            } else {
-                loader.setPower(0);
+
+            int launchTimeMs = 200;
+
+            boolean minLaunchSpeed = launcher.getVelocity() >= LAUNCHER_MINIMUM_TICKS;
+
+            boolean aPressed = gamepad.a;
+            boolean bPressed = gamepad.b;
+            boolean executeLaunch = ((aPressed && readyToLaunch) || bPressed) && !gamepad.start && minLaunchSpeed;
+            if (executeLaunch && !lastLaunch && !runningSequence) {
+                runningSequence = true;
+                servoState = ServoState.GOING_OUT;
+                actionStartTime = System.currentTimeMillis();
+            }
+            lastLaunch = executeLaunch;
+
+            long elapsed = System.currentTimeMillis() - actionStartTime;
+            switch (servoState) {
+                case IDLE:
+                    loader.setPower(0.1); // Probably better if this was 0, so it takes no power. But it sticks up a little right now without this.
+                    loader.setDirection(CRServo.Direction.FORWARD);
+                    break;
+                case GOING_OUT:
+                    loader.setPower(LOADER_POWER);
+                    loader.setDirection(CRServo.Direction.REVERSE);
+                    if (elapsed >= launchTimeMs) {
+                        servoState = ServoState.RETURNING;
+                        actionStartTime = System.currentTimeMillis();
+                    }
+                    break;
+                case RETURNING:
+                    loader.setPower(LOADER_POWER);
+                    loader.setDirection(CRServo.Direction.FORWARD);
+                    if (elapsed >= launchTimeMs) {
+                        servoState = ServoState.IDLE;
+                        runningSequence = false;
+                    }
+                    break;
             }
         }
     }
@@ -99,11 +147,16 @@ public class Launcher {
         launcherVelocity = LAUNCHER_IDLE_TICKS;
 
         // Manual launch velocity adjustment
-        if (gamepad.left_bumper) {
+        if (gamepad.left_bumper && !lastLeftBumper) {
             lvManualAdjustment -= LAUNCHER_TICKS_INCREMENTS;
-        } else if(gamepad.right_bumper) {
-            lvManualAdjustment += LAUNCHER_TICKS_INCREMENTS;
+            telemetry.speak("Slower, " +  + lvManualAdjustment + " ticks");
         }
+        if (gamepad.right_bumper && !lastRightBumper) {
+            lvManualAdjustment += LAUNCHER_TICKS_INCREMENTS;
+            telemetry.speak("Faster, " +  + lvManualAdjustment + " ticks");
+        }
+        lastLeftBumper = gamepad.left_bumper;
+        lastRightBumper = gamepad.right_bumper;
 
         lvGoalDistanceAdjustment = getGoalDistanceAdjustment();
 
