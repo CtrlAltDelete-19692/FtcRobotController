@@ -2,6 +2,10 @@ package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
+
 @Autonomous(name = "DecodeAutonomous")
 public class DecodeAutonomous extends CtrlAltDelOpMode {
     private int teamTagId = 20;
@@ -9,6 +13,8 @@ public class DecodeAutonomous extends CtrlAltDelOpMode {
     private Drive drive;
     private Launcher launcher;
     private Intake intake;
+
+    public GoBildaPinpointDriver pinpoint;
 
     private static final String[] AUTO_PROGRAMS = { "Back", "Front" };
     private int autoProgramIndex = 1;
@@ -19,6 +25,9 @@ public class DecodeAutonomous extends CtrlAltDelOpMode {
 
     private boolean dpadPressedLast = false;
     private boolean dpadLRPressedLast = false;
+
+    boolean lastLaunch = false;
+    boolean runningSequence = false;
 
     @Override
     public void runOpMode() throws InterruptedException {
@@ -98,6 +107,14 @@ public class DecodeAutonomous extends CtrlAltDelOpMode {
         launcher = new Launcher(hardwareMap, aprilTag, telemetry);
         intake = new Intake(hardwareMap);
 
+        pinpoint = hardwareMap.get(GoBildaPinpointDriver.class, "Odo");
+
+        // 1. Initialize settings (Check user guide for your specific pod's ticks/mm)
+        //pinpoint.setXOffset(-120.0); // Lateral pod offset
+        //pinpoint.setYOffset(-120.0); // Forward pod offset
+        pinpoint.setEncoderResolution(GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_4_BAR_POD);
+        //pinpoint.setEncoderDirections(GoBildaPinpointDriver.EncoderDirection.FORWARD, GoBildaPinpointDriver.EncoderDirection.FORWARD);
+
         waitForStart();
 
         telemetry.update(); // Clear previous telemetry data (selection screen)
@@ -105,72 +122,208 @@ public class DecodeAutonomous extends CtrlAltDelOpMode {
         String selectedProgram = AUTO_PROGRAMS[autoProgramIndex];
 
         if (opModeIsActive()) {
-            if (selectedProgram.equals("Back") || selectedProgram.equals("Back: New Launcher")) {
-                // Position for shooting
-                driveForward(200, direction);
-                rotateRight(200, direction);
-                centerOnTag(1000);
+            pinpoint.resetPosAndIMU(); // Sets current position to (0,0,0)
+            pinpoint.update();
 
-                // Spin up and shoot
-                if (selectedProgram.equals("Back: New Launcher")) {
-                    shoot(9, 4);
-                } else {
-                    // Original behavior: spin up + pulses
-                    spinUpLauncher(10, 5000);
-                    pulseLoader();
-                    pulseLoader();
-                    pulseLoader();
-                    pulseLoader();
-                    pulseLoader();
-                    pulseLoader();
-                    stopLauncher();
-                }
+            if (selectedProgram.equals("Back")) {
+                takeFarShots(4);
+            } else if (selectedProgram.equals("Front")) { // Start at Goal / large white triangle
+                takeCloseShots(4);
 
-                // Pause out of the way til the end of auto
-                pause(pauseTimeSeconds * 1000);
+                goToPose(-24, 0);
+                goToPose(-24, 12);
+                intake.spin(true);
+                goToPose(0, 12);
+                intake.spin(false);
 
-                // Get out of shooting triangle
-                driveForward(FOOT_MS * 2, direction);
-                rotateRight(570, direction);
-            } else if (selectedProgram.equals("Front") || selectedProgram.equals("Front: New Loader")) { // Start at Goal / large white triangle
-                // Position for shooting
-                driveBackward(FOOT_MS * 3.5, direction);
-                strafeRight(500, direction);
-                centerOnTag(1000);
+                takeCloseShots(4);
 
-                // Spin up and shoot
-                if (selectedProgram.equals("Front: New Loader")) {
-                    // Spin up and shoot
-                    spinUpLauncher(4, 4000);
-                    heartbeatShoot();
-                    sleep(2000);
-                    heartbeatShoot();
-                    sleep(2000);
-                    heartbeatShoot();
-                    stopLauncher();
-                } else {
-                    spinUpLauncher(4, 4000);
-                    pulseLoader();
-                    pulseLoader();
-                    pulseLoader();
-                    pulseLoader();
-                    pulseLoader();
-                    pulseLoader();
-                    stopLauncher();
-                }
+                goToPose(-24, 0);
+                goToPose(-24, 36);
+                intake.spin(true);
+                goToPose(0, 36);
+                intake.spin(false);
 
-                // Pause out of the way til the end of auto
-                driveForward(FOOT_MS * 3, direction);
-                pause(pauseTimeSeconds * 1000);
-
-                // Get out of shooting triangle
-                driveBackward(FOOT_MS * 3.5, direction);
-                strafeRight(1100, direction);
-                rotateRight(400, direction);
+                takeCloseShots(4);
             }
 
             stopAllMotors();
         }
+    }
+
+    private void takeCloseShots(int shotCount) {
+        goToPose(0, -16);
+        turnToHeading(45);
+        spinUpLauncher(10, 5000);
+        intake.spin(true);
+        pulseLoader(shotCount);
+        intake.spin(false);
+        turnToHeading(0);
+        stopLauncher();
+    }
+    private void takeFarShots(int shotCount) {
+        turnToHeading(-30);
+        spinUpLauncher(10, 5000);
+        intake.spin(true);
+        pulseLoader(shotCount);
+        intake.spin(false);
+        turnToHeading(0);
+        stopLauncher();
+    }
+
+    private void goToPose(double targetY, double targetX) {
+        final double buffer = 2.0; // inches
+        final double minSpeed = 0.1;
+        final double maxSpeed = 0.2;
+        final double kP = 0.05; // proportional gain
+        final long timeoutMs = 5000; // safety timeout
+
+        long startTime = System.currentTimeMillis();
+
+        while (opModeIsActive()) {
+            // Safety timeout so we do not drive forever if odometry is wrong
+            if (System.currentTimeMillis() - startTime > timeoutMs) {
+                telemetry.addLine("goToPose timed out");
+                telemetry.update();
+                break;
+            }
+
+            // Get latest odometry
+            pinpoint.update();
+            Pose2D pos = pinpoint.getPosition();
+
+            boolean xFlip = false;
+            boolean yFlip = true;
+            double currentX = pos.getX(DistanceUnit.INCH) * (xFlip ? -1 : 1);
+            double currentY = pos.getY(DistanceUnit.INCH) * (yFlip ? -1 : 1);
+
+            // Error from target
+            double xError = targetX - currentX;
+            double yError = targetY - currentY;
+
+            double strafe = 0;
+            double forward = 0;
+
+            int xDirection = xError > 0 ? 1 : -1;
+            if (Math.abs(xError) > buffer) {
+                forward = Math.abs(xError) * kP;
+
+                if (forward < minSpeed) {
+                    forward = minSpeed;
+                }
+                if (strafe > maxSpeed) {
+                    forward = maxSpeed;
+                }
+
+                forward *= xDirection;
+            } else {
+                forward = 0;
+            }
+
+            int yDirection = yError > 0 ? 1 : -1;
+            if (Math.abs(yError) > buffer) {
+                strafe = Math.abs(yError) * kP;
+
+                if (strafe < minSpeed) {
+                    strafe = minSpeed;
+                }
+                if (strafe > maxSpeed) {
+                    strafe = maxSpeed;
+                }
+
+                strafe *= yDirection;
+            } else {
+                strafe = 0;
+            }
+
+            // Stop once both axes are within tolerance
+            if (forward == 0 && strafe == 0) {
+                break;
+            }
+
+            drive.driveCommand(strafe, forward, 0);
+
+            telemetry.addLine(String.format("Target:  (%.1f, %.1f)", targetX, targetY));
+            telemetry.addLine(String.format("Current: (%.1f, %.1f)", currentX, currentY));
+            telemetry.addLine(String.format("Error:   (%.1f, %.1f)", xError, yError));
+            telemetry.addLine(String.format("Drive:   S %.1f | F %.1f", strafe, forward));
+            telemetry.update();
+
+            idle();
+        }
+
+        driveStop();
+    }
+
+    private void turnToHeading(double targetHeading) {
+        final double headingBuffer = 3.0; // degrees
+        final double minTurn = 0.12;
+        final double maxTurn = 0.35;
+        final double headingKP = 0.01;
+        final long timeoutMs = 4000;
+
+        long startTime = System.currentTimeMillis();
+
+        while (opModeIsActive()) {
+            // Safety timeout
+            if (System.currentTimeMillis() - startTime > timeoutMs) {
+                telemetry.addLine("turnToHeading timed out");
+                telemetry.update();
+                break;
+            }
+
+            // Update odometry
+            pinpoint.update();
+            Pose2D pos = pinpoint.getPosition();
+
+            double currentHeading = pos.getHeading(AngleUnit.DEGREES) * -1; // Flip
+
+            // Normalize heading error to -180 to 180
+            double headingError = targetHeading - currentHeading;
+
+            while (headingError > 180) {
+                headingError -= 360;
+            }
+
+            while (headingError < -180) {
+                headingError += 360;
+            }
+
+            double turn = 0;
+
+            int turnDirection = headingError > 0 ? 1 : -1;
+            if (Math.abs(headingError) > headingBuffer) {
+                turn = Math.abs(headingError) * headingKP;
+
+                if (turn < minTurn) {
+                    turn = minTurn;
+                }
+
+                if (turn > maxTurn) {
+                    turn = maxTurn;
+                }
+
+                turn *= turnDirection;
+            } else {
+                turn = 0;
+            }
+
+            if (turn == 0) {
+                break;
+            }
+
+            drive.driveCommand(0, 0, turn);
+
+            telemetry.addLine(String.format("Target Heading:  %.1f", targetHeading));
+            telemetry.addLine(String.format("Current Heading: %.1f", currentHeading));
+            telemetry.addLine(String.format("Heading Error:   %.1f", headingError));
+            telemetry.addLine(String.format("Turn:            %.2f", turn));
+            telemetry.update();
+
+            idle();
+        }
+
+        driveStop();
     }
 
     private void driveForTime(double strafe, double forward, double rotate, double durationMs, int direction) {
@@ -260,16 +413,24 @@ public class DecodeAutonomous extends CtrlAltDelOpMode {
         launcher.stopLauncher();
     }
 
-    private void pulseLoader() {
+    private void pulseLoader(int shotCount) {
+
         if (launcher.loader == null) return;
 
-        // Feed
-        launcher.loader.setPower(0.5); // same as your TeleOp
-        sleep(LOADER_PULSE_MS);
+        for (int i = 0; i < shotCount && opModeIsActive(); i++) {
 
-        // Stop
-        launcher.loader.setPower(0.0);
-        sleep(LOADER_GAP_MS);
+            // Start launch sequence
+            launcher.triggerLoader();
+
+            // Wait for loader sequence to complete
+            while (launcher.runningSequence && opModeIsActive()) {
+                launcher.updateLoader();
+                idle(); // Let FTC runtime breathe
+            }
+
+            // Wait for next ball to settle into launcher
+            sleep(1000);
+        }
     }
 
     private void heartbeatShoot(){ //

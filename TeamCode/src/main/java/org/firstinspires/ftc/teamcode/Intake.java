@@ -20,17 +20,20 @@ public class Intake {
 
     public void update(Gamepad gamepad, Gamepad gamepad2) {
         boolean yPressed = gamepad.y || gamepad2.y;
-        boolean spinLauncher = gamepad2.right_trigger > CtrlAltDelOpMode.TRIGGER_DEADZONE;
 
         // Detect fresh press only
         if (yPressed && !lastY) {
             intakeEnabled = !intakeEnabled;
         }
-
         lastY = yPressed;
 
-        // Apply power
-        if (intakeEnabled || spinLauncher) {
+        boolean spinLauncher = gamepad2.right_trigger > CtrlAltDelOpMode.TRIGGER_DEADZONE || intakeEnabled;
+
+        spin(spinLauncher);
+    }
+
+    public void spin(boolean spinLauncher) {
+        if (spinLauncher) {
             pickupMotor.setPower(INTAKE_POWER);
         } else {
             pickupMotor.setPower(0);

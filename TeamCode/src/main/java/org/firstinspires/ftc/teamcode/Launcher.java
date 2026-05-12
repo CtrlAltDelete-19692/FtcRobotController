@@ -20,7 +20,7 @@ public class Launcher {
 
     private static final double LOADER_POWER = 0.5; // Between 0 and 1
     private static final double LAUNCHER_IDLE_TICKS = 500;  // maintains spin
-    public static final double LAUNCHER_BASE_TICKS = 1050;  // full shooting speed from 2ft
+    public static final double LAUNCHER_BASE_TICKS = 1100;  // full shooting speed from 2ft
     public static final double LAUNCHER_MINIMUM_TICKS = 700;  // full shooting speed from 2ft
     public static final double TICKS_PER_FOOT = 60;  // ticks to add for each extra foot of distance, based on testing
     public static final int LAUNCHER_TICKS_INCREMENTS = 10;  // When manually adjusting launcher, increment / decrement by this amount
@@ -79,52 +79,74 @@ public class Launcher {
     }
 
     private void loader(Gamepad gamepad, Gamepad gamepad2) {
+        boolean minLaunchSpeed = launcher.getVelocity() >= LAUNCHER_MINIMUM_TICKS;
+
+        boolean aPressed = gamepad.a;
+        boolean bPressed = gamepad.b;
+
+        boolean executeLaunch =
+                ((aPressed && readyToLaunch) || bPressed)
+                        && !gamepad.start
+                        && minLaunchSpeed;
+
+        runLoader(executeLaunch);
+    }
+
+    // Call this from autonomous when you want to launch
+    public void triggerLoader() {
+        runLoader(true);
+    }
+
+    public void updateLoader() {
+        runLoader(false);
+    }
+
+    // Shared loader sequence logic
+    private void runLoader(boolean executeLaunch) {
         if (CtrlAltDelOpMode.killMotors) {
-            loader.setPower(0);
+            if (loader != null) loader.setPower(0);
             return;
         }
 
-        if (loader != null) {
-            boolean oneController = gamepad2.a && DecodeTeleOp.oneController;
-            boolean oneControllerB = gamepad2.b && DecodeTeleOp.oneController;
+        if (loader == null) return;
 
-            int launchTimeMs = 200;
+        int launchTimeMs = 200;
 
-            boolean minLaunchSpeed = launcher.getVelocity() >= LAUNCHER_MINIMUM_TICKS;
+        if (executeLaunch && !lastLaunch && !runningSequence) {
+            runningSequence = true;
+            servoState = ServoState.GOING_OUT;
+            actionStartTime = System.currentTimeMillis();
+        }
 
-            boolean aPressed = gamepad.a;
-            boolean bPressed = gamepad.b;
-            boolean executeLaunch = ((aPressed && readyToLaunch) || bPressed) && !gamepad.start && minLaunchSpeed;
-            if (executeLaunch && !lastLaunch && !runningSequence) {
-                runningSequence = true;
-                servoState = ServoState.GOING_OUT;
-                actionStartTime = System.currentTimeMillis();
-            }
-            lastLaunch = executeLaunch;
+        lastLaunch = executeLaunch;
 
-            long elapsed = System.currentTimeMillis() - actionStartTime;
-            switch (servoState) {
-                case IDLE:
-                    loader.setPower(0.1); // Probably better if this was 0, so it takes no power. But it sticks up a little right now without this.
-                    loader.setDirection(CRServo.Direction.FORWARD);
-                    break;
-                case GOING_OUT:
-                    loader.setPower(LOADER_POWER);
-                    loader.setDirection(CRServo.Direction.REVERSE);
-                    if (elapsed >= launchTimeMs) {
-                        servoState = ServoState.RETURNING;
-                        actionStartTime = System.currentTimeMillis();
-                    }
-                    break;
-                case RETURNING:
-                    loader.setPower(LOADER_POWER);
-                    loader.setDirection(CRServo.Direction.FORWARD);
-                    if (elapsed >= launchTimeMs) {
-                        servoState = ServoState.IDLE;
-                        runningSequence = false;
-                    }
-                    break;
-            }
+        long elapsed = System.currentTimeMillis() - actionStartTime;
+
+        switch (servoState) {
+            case IDLE:
+                loader.setPower(0.1);
+                loader.setDirection(CRServo.Direction.FORWARD);
+                break;
+
+            case GOING_OUT:
+                loader.setPower(LOADER_POWER);
+                loader.setDirection(CRServo.Direction.REVERSE);
+
+                if (elapsed >= launchTimeMs) {
+                    servoState = ServoState.RETURNING;
+                    actionStartTime = System.currentTimeMillis();
+                }
+                break;
+
+            case RETURNING:
+                loader.setPower(LOADER_POWER);
+                loader.setDirection(CRServo.Direction.FORWARD);
+
+                if (elapsed >= launchTimeMs) {
+                    servoState = ServoState.IDLE;
+                    runningSequence = false;
+                }
+                break;
         }
     }
 

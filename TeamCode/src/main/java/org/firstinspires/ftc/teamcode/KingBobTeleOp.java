@@ -2,7 +2,7 @@ package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
-@TeleOp(name = "KingBobTeleOp")
+//@TeleOp(name = "KingBobTeleOp")
 
 public class KingBobTeleOp extends CtrlAltDelOpMode {
     public Drive drive;
