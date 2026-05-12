@@ -130,18 +130,16 @@ public class DecodeAutonomous extends CtrlAltDelOpMode {
             } else if (selectedProgram.equals("Front")) { // Start at Goal / large white triangle
                 takeCloseShots(4);
 
-                goToPose(-24, 0);
-                goToPose(-24, 12);
+                goToPose(24, -30);
                 intake.spin(true);
-                goToPose(0, 12);
+                goToPose(24, 0);
                 intake.spin(false);
 
                 takeCloseShots(4);
 
-                goToPose(-24, 0);
-                goToPose(-24, 36);
+                goToPose(48, -30);
                 intake.spin(true);
-                goToPose(0, 36);
+                goToPose(48, 0);
                 intake.spin(false);
 
                 takeCloseShots(4);
