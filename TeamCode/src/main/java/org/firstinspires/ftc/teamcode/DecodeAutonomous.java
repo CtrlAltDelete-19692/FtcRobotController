@@ -127,6 +127,13 @@ public class DecodeAutonomous extends CtrlAltDelOpMode {
 
             if (selectedProgram.equals("Back")) {
                 takeFarShots(4);
+
+                goToPose(-24, 0);
+                intake.spin(true);
+                goToPose(-24, 36);
+                intake.spin(false);
+
+                takeFarShots(4);
             } else if (selectedProgram.equals("Front")) { // Start at Goal / large white triangle
                 takeCloseShots(4);
 
@@ -151,7 +158,7 @@ public class DecodeAutonomous extends CtrlAltDelOpMode {
 
     private void takeCloseShots(int shotCount) {
         goToPose(0, -16);
-        turnToHeading(45);
+        turnToHeading(-40);
         spinUpLauncher(10, 5000);
         intake.spin(true);
         pulseLoader(shotCount);
