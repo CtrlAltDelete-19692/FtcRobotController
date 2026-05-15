@@ -19,9 +19,11 @@ public class DecodeAutonomous extends CtrlAltDelOpMode {
     private static final String[] AUTO_PROGRAMS = { "Back", "Front" };
     private int autoProgramIndex = 1;
 
-    private static final long LOADER_PULSE_MS = 700;  // feed one note
-    private static final long LOADER_GAP_MS = 640;  // gap between shots
-    private static final long FOOT_MS = 415;
+    private static final long LOADER_GAP_MS = 800;  // gap between shots
+    private static final long FOOT_MS = 350; // Desmond's living room carpet
+    //private static final long FOOT_MS = 415;
+    private static final long STRAFE_FOOT_MS = 600; // Desmond's living room carpet
+    //private static final long STRAFE_FOOT_MS = 600;
 
     private boolean dpadPressedLast = false;
     private boolean dpadLRPressedLast = false;
@@ -126,40 +128,114 @@ public class DecodeAutonomous extends CtrlAltDelOpMode {
             pinpoint.update();
 
             if (selectedProgram.equals("Back")) {
-                takeFarShots(4);
+                //backOdo();
 
-                goToPose(-24, 0);
-                intake.spin(true);
-                goToPose(-24, 36);
-                intake.spin(false);
-
-                takeFarShots(4);
+                back(direction);
             } else if (selectedProgram.equals("Front")) { // Start at Goal / large white triangle
-                takeCloseShots(4);
+                //frontOdo();
 
-                goToPose(24, -30);
-                intake.spin(true);
-                goToPose(24, 0);
-                intake.spin(false);
-
-                takeCloseShots(4);
-
-                goToPose(48, -30);
-                intake.spin(true);
-                goToPose(48, 0);
-                intake.spin(false);
-
-                takeCloseShots(4);
+                front(direction);
             }
 
             stopAllMotors();
         }
     }
 
-    private void takeCloseShots(int shotCount) {
-        goToPose(0, -16);
-        turnToHeading(-40);
+    private void front(int direction) {
+        // Position for shooting
+        driveBackward(FOOT_MS * 3.5, direction);
+        rotateLeft(400, direction);
+
+        intake.spin(true);
+
+        centerOnTag(1000);
+        spinUpLauncher(4, 4000);
+        pulseLoader(5);
+
+        //rotateRight(400, direction);
+        turnToHeading(0);
+
+        strafeRight(FOOT_MS * 2.2, direction);
+        driveForward(FOOT_MS * 3.2, direction);
+        driveBackward(FOOT_MS * 3.2, direction);
+        strafeLeft(FOOT_MS * 2.2, direction);
+
+        rotateLeft(400, direction);
+
+        centerOnTag(1000);
+        pulseLoader(5);
+        stopLauncher();
+
+        //rotateRight(400, direction);
+        turnToHeading(0);
+
+        strafeRight(FOOT_MS * 4.2, direction);
+        driveForward(FOOT_MS * 3.2, direction);
+        driveBackward(FOOT_MS * 3.2, direction);
+        strafeLeft(FOOT_MS * 4.2, direction);
+
+        // Pause out of the way til the end of auto
+        //driveForward(FOOT_MS * 3, direction);
+        //pause(pauseTimeSeconds * 1000);
+
+        turnToHeading(0);
+        intake.spin(false);
+    }
+
+    private void back(int direction) {
+        // Position for shooting
+        driveForward(200, direction);
+        rotateRight(200, direction);
+        centerOnTag(1000);
+
+        // Spin up and shoot
         spinUpLauncher(10, 5000);
+        intake.spin(true);
+        pulseLoader(4);
+        intake.spin(false);
+        stopLauncher();
+
+        // Pause out of the way til the end of auto
+        //pause(pauseTimeSeconds * 1000);
+
+        // Get out of shooting triangle
+        driveForward(FOOT_MS * 2, direction);
+        rotateRight(570, direction);
+    }
+
+    private void frontOdo() {
+        takeCloseShots(4);
+//
+//                goToPose(24, -30);
+//                intake.spin(true);
+//                goToPose(24, 0);
+//                intake.spin(false);
+//
+//                takeCloseShots(4);
+
+//                goToPose(48, -30);
+//                intake.spin(true);
+//                goToPose(48, 0);
+//                intake.spin(false);
+//
+//                takeCloseShots(4);
+    }
+
+    private void backOdo() {
+        takeFarShots(4);
+
+        goToPose(-24, 0);
+        intake.spin(true);
+        goToPose(-24, 36);
+        intake.spin(false);
+
+        takeFarShots(4);
+    }
+
+    private void takeCloseShots(int shotCount) {
+        goToPose(10, -30);
+        turnToHeading(-40);
+        spinUpLauncher(3, 5000);
         intake.spin(true);
         pulseLoader(shotCount);
         intake.spin(false);
@@ -168,7 +244,7 @@ public class DecodeAutonomous extends CtrlAltDelOpMode {
     }
     private void takeFarShots(int shotCount) {
         turnToHeading(-30);
-        spinUpLauncher(10, 5000);
+        spinUpLauncher(3, 5000);
         intake.spin(true);
         pulseLoader(shotCount);
         intake.spin(false);
@@ -281,7 +357,8 @@ public class DecodeAutonomous extends CtrlAltDelOpMode {
             pinpoint.update();
             Pose2D pos = pinpoint.getPosition();
 
-            double currentHeading = pos.getHeading(AngleUnit.DEGREES) * -1; // Flip
+            //double currentHeading = pos.getHeading(AngleUnit.DEGREES) * -1; // Flip
+            double currentHeading = -drive.imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
 
             // Normalize heading error to -180 to 180
             double headingError = targetHeading - currentHeading;
@@ -434,7 +511,7 @@ public class DecodeAutonomous extends CtrlAltDelOpMode {
             }
 
             // Wait for next ball to settle into launcher
-            sleep(1000);
+            sleep(LOADER_GAP_MS);
         }
     }
 

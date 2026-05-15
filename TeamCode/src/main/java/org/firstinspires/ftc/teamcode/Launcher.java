@@ -19,7 +19,7 @@ public class Launcher {
     public DcMotorEx launcher;
 
     private static final double LOADER_POWER = 0.5; // Between 0 and 1
-    private static final double LAUNCHER_IDLE_TICKS = 500;  // maintains spin
+    private static final double LAUNCHER_IDLE_TICKS = 700;  // maintains spin
     public static final double LAUNCHER_BASE_TICKS = 1100;  // full shooting speed from 2ft
     public static final double LAUNCHER_MINIMUM_TICKS = 700;  // full shooting speed from 2ft
     public static final double TICKS_PER_FOOT = 60;  // ticks to add for each extra foot of distance, based on testing
