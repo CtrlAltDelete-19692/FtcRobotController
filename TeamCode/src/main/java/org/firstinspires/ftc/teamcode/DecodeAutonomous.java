@@ -22,7 +22,7 @@ public class DecodeAutonomous extends CtrlAltDelOpMode {
     private static final long LOADER_GAP_MS = 800;  // gap between shots
     private static final long FOOT_MS = 350; // Desmond's living room carpet
     //private static final long FOOT_MS = 415;
-    private static final long STRAFE_FOOT_MS = 600; // Desmond's living room carpet
+    private static final long STRAFE_FOOT_MS = 500; // Desmond's living room carpet
     //private static final long STRAFE_FOOT_MS = 600;
 
     private boolean dpadPressedLast = false;
@@ -144,63 +144,89 @@ public class DecodeAutonomous extends CtrlAltDelOpMode {
     private void front(int direction) {
         // Position for shooting
         driveBackward(FOOT_MS * 3.5, direction);
-        rotateLeft(400, direction);
+        rotateLeft(300, direction);
 
+        spinUpLauncher(4, 4000);
         intake.spin(true);
 
         centerOnTag(1000);
-        spinUpLauncher(4, 4000);
         pulseLoader(5);
 
-        //rotateRight(400, direction);
+        // Collect Artifact Batch 1
         turnToHeading(0);
+        //rotateRight(400, direction);
 
-        strafeRight(FOOT_MS * 2.2, direction);
-        driveForward(FOOT_MS * 3.2, direction);
+        strafeRight(STRAFE_FOOT_MS * 2.2, direction);
+        driveForward(FOOT_MS * 3.2, direction); // Collect Artifacts
         driveBackward(FOOT_MS * 3.2, direction);
-        strafeLeft(FOOT_MS * 2.2, direction);
+        strafeLeft(STRAFE_FOOT_MS * 2.2, direction);
 
-        rotateLeft(400, direction);
+        rotateLeft(300, direction);
 
         centerOnTag(1000);
         pulseLoader(5);
-        stopLauncher();
 
+        // Collect Artifact Batch 2
+        turnToHeading(0);
         //rotateRight(400, direction);
-        turnToHeading(0);
 
-        strafeRight(FOOT_MS * 4.2, direction);
-        driveForward(FOOT_MS * 3.2, direction);
+        strafeRight(STRAFE_FOOT_MS * (2.2 + 2), direction);
+        driveForward(FOOT_MS * 3.2, direction); // Collect Artifacts
         driveBackward(FOOT_MS * 3.2, direction);
-        strafeLeft(FOOT_MS * 4.2, direction);
-
-        // Pause out of the way til the end of auto
-        //driveForward(FOOT_MS * 3, direction);
-        //pause(pauseTimeSeconds * 1000);
+        strafeLeft(STRAFE_FOOT_MS * (2.2 + 2), direction);
 
         turnToHeading(0);
+
+        stopLauncher();
         intake.spin(false);
     }
 
     private void back(int direction) {
         // Position for shooting
-        driveForward(200, direction);
-        rotateRight(200, direction);
-        centerOnTag(1000);
+        driveForTime(-1, 1, -1, FOOT_MS, direction);
+        //strafeLeft(STRAFE_FOOT_MS * 0.5, direction);
+        //driveForward(FOOT_MS * 0.5);
+        //rotateLeft(400, direction);
 
-        // Spin up and shoot
         spinUpLauncher(10, 5000);
         intake.spin(true);
-        pulseLoader(4);
-        intake.spin(false);
-        stopLauncher();
 
-        // Pause out of the way til the end of auto
-        //pause(pauseTimeSeconds * 1000);
+        centerOnTag(1000);
+        pulseLoader(5);
+
+        // Collect Artifact Batch 1
+        turnToHeading(0);
+
+        strafeLeft(STRAFE_FOOT_MS * 1.7, direction);
+        driveForward(FOOT_MS * 4, direction); // Collect Artifacts
+        driveBackward(FOOT_MS * 4, direction);
+        strafeRight(STRAFE_FOOT_MS * 1.7, direction);
+
+        rotateLeft(400, direction);
+
+        centerOnTag(1000);
+        pulseLoader(5);
+
+        // Collect Artifact Batch 2
+        turnToHeading(0);
+
+        strafeLeft(STRAFE_FOOT_MS * (1.7 + 2), direction);
+        driveForward(FOOT_MS * 4, direction); // Collect Artifacts
+        driveBackward(FOOT_MS * 4, direction);
+        strafeRight(STRAFE_FOOT_MS * (1.7 + 2), direction);
+
+        rotateLeft(400, direction);
+
+        centerOnTag(1000);
+        pulseLoader(5);
 
         // Get out of shooting triangle
-        driveForward(FOOT_MS * 2, direction);
-        rotateRight(570, direction);
+        turnToHeading(0);
+        strafeLeft(STRAFE_FOOT_MS * 1.5, direction);
+        driveForward(FOOT_MS * 1.5, direction);
+
+        stopLauncher();
+        intake.spin(false);
     }
 
     private void frontOdo() {
