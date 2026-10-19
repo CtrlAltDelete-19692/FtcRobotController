@@ -4,6 +4,7 @@ import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.IMU;
@@ -27,7 +28,7 @@ public class Drive {
     public enum DriveMode { FIELD_CENTRIC, MANUAL }
     DriveMode driveMode = DriveMode.FIELD_CENTRIC; // Default drive mode
     
-    private static final double BASE_SPEED_LIMIT = 0.75;
+    private static final double BASE_SPEED_LIMIT = 0.7;
     private static final double AUTO_SPEED = 0.6;
     private static final double SLOW_MODE_FACTOR = 0.2;
     private static final double TURBO_EXTRA_FACTOR = 0.15;
@@ -48,37 +49,57 @@ public class Drive {
 
         setupMotors(hardwareMap, driveSystem);
 
-        setupImu(hardwareMap);
+        setupImu(hardwareMap, driveSystem);
     }
 
     public void setupMotors(HardwareMap hardwareMap, String driveSystem) {
         leftFrontMotor = hardwareMap.get(DcMotor.class, "LFM");
-        DcMotor.Direction left = DcMotor.Direction.REVERSE;
-        if (driveSystem.equals("King Bob")) {
-            left = DcMotor.Direction.FORWARD;
+        DcMotor.Direction leftFMD = DcMotor.Direction.REVERSE;
+        if (driveSystem.equals("Biobuzz")) {
+            leftFMD = DcMotor.Direction.REVERSE;
         }
-        leftFrontMotor.setDirection(left);
+        leftFrontMotor.setDirection(leftFMD);
         leftFrontMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
+        DcMotor.Direction leftBMD = DcMotor.Direction.FORWARD;
+        if (driveSystem.equals("Biobuzz")) {
+            leftBMD = DcMotor.Direction.FORWARD;
+        }
         leftBackMotor  = hardwareMap.get(DcMotor.class, "LBM");
-        leftBackMotor.setDirection(left);
+        leftBackMotor.setDirection(leftBMD);
         leftBackMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
+        DcMotor.Direction rightFMD = DcMotor.Direction.FORWARD;
+        if (driveSystem.equals("Biobuzz")) {
+            rightFMD = DcMotor.Direction.REVERSE;
+        }
         rightFrontMotor = hardwareMap.get(DcMotor.class, "RFM");
-        rightFrontMotor.setDirection(DcMotor.Direction.FORWARD);
+        rightFrontMotor.setDirection(rightFMD);
         rightFrontMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
+        DcMotor.Direction rightBMD = DcMotor.Direction.FORWARD;
+        if (driveSystem.equals("Biobuzz")) {
+            rightBMD = DcMotor.Direction.REVERSE;
+        }
         rightBackMotor = hardwareMap.get(DcMotor.class, "RBM");
-        rightBackMotor.setDirection(DcMotor.Direction.FORWARD);
+        rightBackMotor.setDirection(rightBMD);
         rightBackMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
     }
 
-    public void setupImu(HardwareMap hardwareMap) {
+    public void setupImu(HardwareMap hardwareMap, String driveSystem) {
         imu = hardwareMap.get(IMU.class, "imu");
-        RevHubOrientationOnRobot orientationOnRobot = new RevHubOrientationOnRobot(
-                RevHubOrientationOnRobot.LogoFacingDirection.UP,
-                RevHubOrientationOnRobot.UsbFacingDirection.BACKWARD
-        );
+        RevHubOrientationOnRobot orientationOnRobot;
+        if (driveSystem.equals("Biobuzz")) {
+            orientationOnRobot = new RevHubOrientationOnRobot(
+                    RevHubOrientationOnRobot.LogoFacingDirection.FORWARD,
+                    RevHubOrientationOnRobot.UsbFacingDirection.UP
+            );
+        } else {
+            orientationOnRobot = new RevHubOrientationOnRobot(
+                    RevHubOrientationOnRobot.LogoFacingDirection.UP,
+                    RevHubOrientationOnRobot.UsbFacingDirection.BACKWARD
+            );
+        }
         imuParams = new IMU.Parameters(orientationOnRobot);
         imu.initialize(imuParams);
 

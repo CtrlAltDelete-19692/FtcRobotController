@@ -1,6 +1,8 @@
 package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 
@@ -29,7 +31,7 @@ public class DecodeTeleOp extends CtrlAltDelOpMode {
         aprilTag = new AprilTag(hardwareMap);
         aprilTag.pipelineSwitch(pipeline);
         launcher = new Launcher(hardwareMap, aprilTag, telemetry);
-        intake = new Intake(hardwareMap);
+        intake = new Intake(hardwareMap, DcMotor.Direction.FORWARD);
         slides = new Slides(hardwareMap);
         leds = new Leds(hardwareMap, aprilTag, launcher);
 

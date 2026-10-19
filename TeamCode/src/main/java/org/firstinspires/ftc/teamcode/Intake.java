@@ -12,9 +12,12 @@ public class Intake {
     private boolean intakeEnabled = true;
     private boolean lastY = false;
 
-    public Intake(HardwareMap hardwareMap) {
+    public Intake(HardwareMap hardwareMap, DcMotor.Direction direction) {
+        if (direction == null) {
+            direction = DcMotor.Direction.FORWARD;
+        }
         pickupMotor = hardwareMap.get(DcMotor.class, "PM");
-        pickupMotor.setDirection(DcMotor.Direction.FORWARD);
+        pickupMotor.setDirection(direction);
         pickupMotor.setPower(0);
     }
 
