@@ -13,6 +13,7 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
     public Drive drive;
 
     //private DcMotor motor;
+    private RotatingLauncher launcher;
     private Intake intake;
     private Servo led;
 
@@ -36,6 +37,7 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
     public void runOpMode() {
         drive = new Drive(hardwareMap, "Biobuzz", false);
         intake = new Intake(hardwareMap, DcMotor.Direction.REVERSE);
+        launcher = new RotatingLauncher(hardwareMap, null, null);
 
 //        motor = hardwareMap.get(DcMotor.class, "motor");
 //
@@ -61,6 +63,7 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
         while (opModeIsActive()) {
             drive.update(gamepad1, gamepad2, teamTagId);
             intake.update(gamepad1, gamepad2);
+            launcher.update(gamepad1, gamepad2);
 
             // ---------------------------------------------------------
             // CALCULATE ELAPSED TIME
