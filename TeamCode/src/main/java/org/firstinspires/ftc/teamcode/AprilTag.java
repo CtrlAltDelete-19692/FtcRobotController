@@ -4,6 +4,7 @@ import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
+import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
 
 public class AprilTag {
@@ -37,5 +38,14 @@ public class AprilTag {
             z = Double.NaN;
             x = Double.NaN;
         }
+    }
+
+    public void addTelemetry(Telemetry telemetry) {
+        if (tagSeen) {
+            telemetry.addLine(String.format("Tag found ✅, %.2f ft", zFeet));
+        } else {
+            telemetry.addLine("Tag not found ❌");
+        }
+        telemetry.addLine();
     }
 }

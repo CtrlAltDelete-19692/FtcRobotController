@@ -11,6 +11,7 @@ import com.qualcomm.robotcore.hardware.IMU;
 import com.qualcomm.robotcore.hardware.VoltageSensor;
 import com.qualcomm.robotcore.util.Range;
 
+import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 
 public class Drive {
@@ -220,6 +221,11 @@ public class Drive {
 
     public DriveMode getDriveMode() {
         return driveMode;
+    }
+
+    public void addTelemetry(Telemetry telemetry) {
+        double headingDeg = imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
+        telemetry.addData("Heading", "%.1f deg", headingDeg);
     }
 
     public void setDriveMode(DriveMode driveMode) {

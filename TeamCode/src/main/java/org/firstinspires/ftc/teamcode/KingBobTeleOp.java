@@ -14,7 +14,7 @@ public class KingBobTeleOp extends CtrlAltDelOpMode {
 
         drive = new Drive(hardwareMap, "King Bob", false);
 
-        TelemetryDashboard dashboard = new TelemetryDashboard(telemetry, drive, null, null, null, null);
+        TelemetryDashboard dashboard = new TelemetryDashboard(telemetry);
 
         waitForStart();
 
@@ -24,7 +24,9 @@ public class KingBobTeleOp extends CtrlAltDelOpMode {
             drive.update(gamepad1, gamepad2, teamTagId);
 
             // Telemetry
-            dashboard.update(teamTagId);
+            dashboard.addStatus(teamTagId, drive.getDriveMode(), killMotors);
+            drive.addTelemetry(telemetry);
+            dashboard.update();
             idle();
         }
     }

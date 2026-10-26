@@ -248,4 +248,33 @@ public class RotatingLauncher {
     public boolean upToSpeed() {
         return launcher.getVelocity() >= (launcherVelocity * LAUNCHER_THRESHOLD);
     }
+
+    public void addTelemetry(Telemetry telemetry) {
+        telemetry.addData(
+                "Launcher",
+                "%.0f / %.0f",
+                launcher.getVelocity(),
+                launcherVelocity
+        );
+
+        telemetry.addData("Launcher Ready", readyToLaunch);
+        telemetry.addData("Tag Adjustment", lvGoalDistanceAdjustment);
+        telemetry.addData("Manual Adjustment", lvManualAdjustment);
+
+        if (loader != null) {
+            telemetry.addData(
+                    "Loader",
+                    "%.0f%%",
+                    loader.getPower() * 100
+            );
+        }
+
+        if (turretServo != null) {
+            telemetry.addData(
+                    "Turret",
+                    "%.0f%%",
+                    turretServo.getPower() * 100
+            );
+        }
+    }
 }

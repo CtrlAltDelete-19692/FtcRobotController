@@ -18,10 +18,12 @@ public class KingBobAutonomous extends CtrlAltDelOpMode {
 
         drive = new Drive(hardwareMap, "King Bob", false);
         drive.setDriveMode(Drive.DriveMode.FIELD_CENTRIC);
-        TelemetryDashboard dashboard = new TelemetryDashboard(telemetry, drive, null, null, null, null);
+        TelemetryDashboard dashboard = new TelemetryDashboard(telemetry);
 
 //        while (!isStarted()) {
-//            dashboard.update(teamTagId);
+//            dashboard.addStatus(teamTagId, drive.getDriveMode(), killMotors);
+//            drive.addTelemetry(telemetry);
+//            dashboard.update();
 //        }
 
         //int direction = -1; // We program our moves based on Red, and multiple by direction (-1) to reverse rotation / strafing for blue
@@ -50,7 +52,9 @@ public class KingBobAutonomous extends CtrlAltDelOpMode {
 //            // shoot(3)
 //            sleep(3000);
 
-            //dashboard.update(teamTagId);
+            //dashboard.addStatus(teamTagId, drive.getDriveMode(), killMotors);
+            //drive.addTelemetry(telemetry);
+            //dashboard.update();
 
             stopAllMotors();
         }

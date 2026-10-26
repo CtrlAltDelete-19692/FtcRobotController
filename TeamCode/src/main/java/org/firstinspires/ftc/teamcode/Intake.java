@@ -4,6 +4,8 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
+import org.firstinspires.ftc.robotcore.external.Telemetry;
+
 public class Intake {
 
     public DcMotor pickupMotor;
@@ -41,5 +43,10 @@ public class Intake {
         } else {
             pickupMotor.setPower(0);
         }
+    }
+
+    public void addTelemetry(Telemetry telemetry) {
+        telemetry.addData("Pickup", "%.1f%%", pickupMotor.getPower() * 100);
+        telemetry.addLine();
     }
 }

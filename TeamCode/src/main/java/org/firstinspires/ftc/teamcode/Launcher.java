@@ -223,4 +223,20 @@ public class Launcher {
     public boolean upToSpeed() {
         return launcher.getVelocity() >= (launcherVelocity * LAUNCHER_THRESHOLD);
     }
+
+    public void addTelemetry(Telemetry telemetry) {
+        String launcherIcon = "\uD83C\uDF00";
+        if (launcherVelocity <= 0) {
+            launcherIcon = "";
+        } else if (readyToLaunch) {
+            launcherIcon = "✅";
+        }
+        telemetry.addLine(String.format("Launcher: %.0f %s", launcher.getVelocity(), launcherIcon));
+        telemetry.addLine(String.format("Target      %.0f (Tag: %d, Manual: %d)",
+                launcherVelocity, lvGoalDistanceAdjustment, lvManualAdjustment));
+
+        if (loader != null) {
+            telemetry.addLine(String.format("Loader: %.0f%%", loader.getPower() * 100));
+        }
+    }
 }

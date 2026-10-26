@@ -5,6 +5,8 @@ import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
+import org.firstinspires.ftc.robotcore.external.Telemetry;
+
 public class Slides {
     public DcMotorEx leftViperSlideMotor;
     public DcMotorEx rightViperSlideMotor;
@@ -96,5 +98,11 @@ public class Slides {
         // Must match how we set them in setup()
         leftViperSlideMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         rightViperSlideMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+    }
+
+    public void addTelemetry(Telemetry telemetry) {
+        telemetry.addData("Slides L / R", "%d / %d",
+                leftViperSlideMotor.getCurrentPosition(),
+                rightViperSlideMotor.getCurrentPosition());
     }
 }

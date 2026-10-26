@@ -2,17 +2,14 @@ package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
-import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Servo;
 
 
-@TeleOp(name = "Biobuzz")
+@TeleOp(name = "BiobuzzTeleOp")
 
 public class BiobuzzTeleOp extends CtrlAltDelOpMode {
 
     public Drive drive;
-
-    //private DcMotor motor;
     private RotatingLauncher launcher;
     private Intake intake;
     private Servo led;
@@ -39,35 +36,33 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
         intake = new Intake(hardwareMap, DcMotor.Direction.REVERSE);
         launcher = new RotatingLauncher(hardwareMap, null, null);
 
-//        motor = hardwareMap.get(DcMotor.class, "motor");
-//
-//        // STUDENT CODE HERE
-//        motor.setDirection(DcMotor.Direction.FORWARD);
-//        motor.setPower(0);
-
         //led = hardwareMap.get(Servo.class, "led");
-
-        // Start LED at the beginning of the color range.
         //led.setPosition(ledPosition);
 
+        // Start our timer after the OpMode starts.
+        lastLoopTime = System.nanoTime();
+
+        TelemetryDashboard dashboard = new TelemetryDashboard(telemetry);
+
+        while (!isStarted()) {
+            //if (gamepad1.x) changeTeam(true);
+            //if (gamepad1.b) changeTeam(false);
+
+            dashboard.addStatus(teamTagId, drive.getDriveMode(), killMotors);
+            launcher.addTelemetry(telemetry);
+            intake.addTelemetry(telemetry);
+            drive.addTelemetry(telemetry);
+            dashboard.update();
+        }
 
         waitForStart();
 
         drive.imu.resetYaw();
 
-        // Start our timer after the OpMode starts.
-        lastLoopTime = System.nanoTime();
-
-        //TelemetryDashboard dashboard = new TelemetryDashboard(telemetry, drive, null, null, intake, null);
-
         while (opModeIsActive()) {
             drive.update(gamepad1, gamepad2, teamTagId);
             intake.update(gamepad1, gamepad2);
             launcher.update(gamepad1, gamepad2);
-
-            // ---------------------------------------------------------
-            // CALCULATE ELAPSED TIME
-            // ---------------------------------------------------------
 
             long currentTime = System.nanoTime();
 
@@ -75,20 +70,6 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
                     (currentTime - lastLoopTime) / 1_000_000_000.0;
 
             lastLoopTime = currentTime;
-
-
-            // ---------------------------------------------------------
-            // DC MOTOR
-            //
-            // X = run motor
-            // ---------------------------------------------------------
-
-//            boolean xPressed = gamepad1.x;
-//            if (xPressed) {
-//                motor.setPower(power);
-//            } else {
-//                motor.setPower(0);
-//            }
 
             boolean lbPressed = gamepad1.left_bumper;
             if (lbPressed && !lastLb) {
@@ -101,7 +82,6 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
                 power += 0.1;
             }
             lastRb = rbPressed;
-
 
             if (power > 1) {
                 power = 1;
@@ -144,7 +124,6 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
             // ---------------------------------------------------------
 
             if (leftTrigger) {
-
                 ledPosition -= colorChange;
 
                 // Wrap around to the end.
@@ -157,40 +136,18 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
             // Send the new position to the LED.
             //led.setPosition(ledPosition);
 
-
-            // ---------------------------------------------------------
-            // TELEMETRY
-            // ---------------------------------------------------------
-
 //            telemetry.addData(
 //                    "LED Position",
 //                    "%.3f",
 //                    ledPosition
 //            );
 
-            telemetry.addData(
-                    "L2",
-                    "%.2f",
-                    gamepad1.left_trigger
-            );
 
-            telemetry.addData(
-                    "R2",
-                    "%.2f",
-                    gamepad1.right_trigger
-            );
-
-//            telemetry.addData(
-//                    "DC Motor Power",
-//                    motor.getPower()
-//            );
-
-            telemetry.addData("LBM", "Power: %.2f | Pos: %d",drive.leftBackMotor.getPower(), drive.leftBackMotor.getCurrentPosition());
-            telemetry.addData("LFM", "Power: %.2f | Pos: %d",drive.leftFrontMotor.getPower(), drive.leftFrontMotor.getCurrentPosition());
-            telemetry.addData("RBM", "Power: %.2f | Pos: %d",drive.rightBackMotor.getPower(), drive.rightBackMotor.getCurrentPosition());
-            telemetry.addData("RFM", "Power: %.2f | Pos: %d",drive.rightFrontMotor.getPower(), drive.rightFrontMotor.getCurrentPosition());
-
-            telemetry.update();
+            dashboard.addStatus(teamTagId, drive.getDriveMode(), killMotors);
+            launcher.addTelemetry(telemetry);
+            intake.addTelemetry(telemetry);
+            drive.addTelemetry(telemetry);
+            dashboard.update();
         }
     }
 }

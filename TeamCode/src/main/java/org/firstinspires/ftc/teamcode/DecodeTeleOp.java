@@ -35,7 +35,7 @@ public class DecodeTeleOp extends CtrlAltDelOpMode {
         slides = new Slides(hardwareMap);
         leds = new Leds(hardwareMap, aprilTag, launcher);
 
-        TelemetryDashboard dashboard = new TelemetryDashboard(telemetry, drive, launcher, aprilTag, intake, slides);
+        TelemetryDashboard dashboard = new TelemetryDashboard(telemetry);
 
         while (!isStarted()) {
             if (gamepad1.x) changeTeam(true);
@@ -43,7 +43,13 @@ public class DecodeTeleOp extends CtrlAltDelOpMode {
 
             aprilTag.update();
 
-            dashboard.update(teamTagId);
+            dashboard.addStatus(teamTagId, drive.getDriveMode(), killMotors);
+            launcher.addTelemetry(telemetry);
+            intake.addTelemetry(telemetry);
+            aprilTag.addTelemetry(telemetry);
+            slides.addTelemetry(telemetry);
+            drive.addTelemetry(telemetry);
+            dashboard.update();
         }
 
         waitForStart();
@@ -69,7 +75,13 @@ public class DecodeTeleOp extends CtrlAltDelOpMode {
             xPressedLast = xPressed;
 
             // Telemetry
-            dashboard.update(teamTagId);
+            dashboard.addStatus(teamTagId, drive.getDriveMode(), killMotors);
+            launcher.addTelemetry(telemetry);
+            intake.addTelemetry(telemetry);
+            aprilTag.addTelemetry(telemetry);
+            slides.addTelemetry(telemetry);
+            drive.addTelemetry(telemetry);
+            dashboard.update();
             idle();
         }
     }
