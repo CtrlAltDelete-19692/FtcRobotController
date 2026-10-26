@@ -24,15 +24,13 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
     // Used to calculate elapsed time between loops.
     private long lastLoopTime;
 
-    private double power = 1;
-    private boolean lastLb = false;
-    private boolean lastRb = false;
     private int teamTagId = 20;
 
 
     @Override
     public void runOpMode() {
         drive = new Drive(hardwareMap, "Biobuzz", false);
+        drive.setResetYawOnRightBumper(false);
         intake = new Intake(hardwareMap, DcMotor.Direction.REVERSE);
         launcher = new RotatingLauncher(hardwareMap, null, null);
 
@@ -70,24 +68,6 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
                     (currentTime - lastLoopTime) / 1_000_000_000.0;
 
             lastLoopTime = currentTime;
-
-            boolean lbPressed = gamepad1.left_bumper;
-            if (lbPressed && !lastLb) {
-                power -= 0.1;
-            }
-            lastLb = lbPressed;
-
-            boolean rbPressed = gamepad1.right_bumper;
-            if (rbPressed && !lastRb) {
-                power += 0.1;
-            }
-            lastRb = rbPressed;
-
-            if (power > 1) {
-                power = 1;
-            } else if (power < -1) {
-                power = -1;
-            }
 
             // ---------------------------------------------------------
             // LED

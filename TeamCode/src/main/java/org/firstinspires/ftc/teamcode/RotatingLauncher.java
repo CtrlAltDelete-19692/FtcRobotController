@@ -3,6 +3,7 @@ package org.firstinspires.ftc.teamcode;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
@@ -16,7 +17,9 @@ public class RotatingLauncher {
 
     public DcMotorEx launcher;
 
+    private static final double LOADER_IDLE_POWER = 0.1; // Between 0 and 1
     private static final double LOADER_POWER = 0.5; // Between 0 and 1
+    private static final int LAUNCH_TIME_MS = 400;
     private static final double LAUNCHER_IDLE_TICKS = 900;  // maintains spin
     public static final double LAUNCHER_BASE_TICKS = 1500;  // full shooting speed from 2ft
     public static final double LAUNCHER_MINIMUM_TICKS = 900;  // full shooting speed from 2ft
@@ -54,11 +57,11 @@ public class RotatingLauncher {
     }
 
     public void setup(HardwareMap hardwareMap) {
-//        loader = hardwareMap.get(CRServo.class, "Loader");
-//        if (loader != null) {
-//            loader.setDirection(CRServo.Direction.REVERSE);
-//            loader.setPower(0);
-//        }
+        loader = hardwareMap.tryGet(CRServo.class, "Loader");
+        if (loader != null) {
+            loader.setDirection(CRServo.Direction.FORWARD);
+            loader.setPower(0);
+        }
 
         launcher = hardwareMap.get(DcMotorEx.class, "Launcher");
         launcher.setDirection(DcMotor.Direction.REVERSE);
@@ -68,7 +71,7 @@ public class RotatingLauncher {
         PIDFCoefficients newCoeffs = new PIDFCoefficients(14  , 0, 0.8, 13.2);
         launcher.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, newCoeffs);
 
-        turretServo = hardwareMap.get(CRServo.class, "TurretServo");
+        turretServo = hardwareMap.tryGet(CRServo.class, "TurretServo");
         if (turretServo != null) {
             turretServo.setDirection(CRServo.Direction.FORWARD);
             turretServo.setPower(0);
@@ -103,9 +106,9 @@ public class RotatingLauncher {
 
     private void turret(Gamepad gamepad) {
         if (turretServo != null) {
-            if (gamepad.left_bumper) {
+            if (gamepad.dpad_left) {
                 turretServo.setPower(TURRET_SERVO_POWER);
-            } else if (gamepad.right_bumper) {
+            } else if (gamepad.dpad_right) {
                 turretServo.setPower(-TURRET_SERVO_POWER);
             } else {
                 turretServo.setPower(0);
@@ -131,7 +134,7 @@ public class RotatingLauncher {
 
         if (loader == null) return;
 
-        int launchTimeMs = 200;
+        int launchTimeMs = LAUNCH_TIME_MS;
 
         if (executeLaunch && !lastLaunch && !runningSequence) {
             runningSequence = true;
@@ -145,13 +148,13 @@ public class RotatingLauncher {
 
         switch (servoState) {
             case IDLE:
-                loader.setPower(0.1);
-                loader.setDirection(CRServo.Direction.FORWARD);
+                loader.setPower(LOADER_IDLE_POWER);
+                loader.setDirection(CRServo.Direction.REVERSE);
                 break;
 
             case GOING_OUT:
                 loader.setPower(LOADER_POWER);
-                loader.setDirection(CRServo.Direction.REVERSE);
+                loader.setDirection(CRServo.Direction.FORWARD);
 
                 if (elapsed >= launchTimeMs) {
                     servoState = ServoState.RETURNING;
@@ -161,7 +164,7 @@ public class RotatingLauncher {
 
             case RETURNING:
                 loader.setPower(LOADER_POWER);
-                loader.setDirection(CRServo.Direction.FORWARD);
+                loader.setDirection(CRServo.Direction.REVERSE);
 
                 if (elapsed >= launchTimeMs) {
                     servoState = ServoState.IDLE;
@@ -190,18 +193,18 @@ public class RotatingLauncher {
         launcherVelocity = LAUNCHER_IDLE_TICKS;
 
         // Manual launch velocity adjustment
-//        if (gamepad.left_bumper && !lastLeftBumper) {
-//            lvManualAdjustment -= LAUNCHER_TICKS_INCREMENTS;
-//            if (telemetry != null) {
-//                telemetry.speak("Slower, " +  + lvManualAdjustment + " ticks");
-//            }
-//        }
-//        if (gamepad.right_bumper && !lastRightBumper) {
-//            lvManualAdjustment += LAUNCHER_TICKS_INCREMENTS;
-//            if (telemetry != null) {
-//                telemetry.speak("Faster, " +  + lvManualAdjustment + " ticks");
-//            }
-//        }
+        if (gamepad.left_bumper && !lastLeftBumper) {
+            lvManualAdjustment -= LAUNCHER_TICKS_INCREMENTS;
+            if (telemetry != null) {
+                telemetry.speak("Slower, " + lvManualAdjustment + " ticks");
+            }
+        }
+        if (gamepad.right_bumper && !lastRightBumper) {
+            lvManualAdjustment += LAUNCHER_TICKS_INCREMENTS;
+            if (telemetry != null) {
+                telemetry.speak("Faster, " + lvManualAdjustment + " ticks");
+            }
+        }
         lastLeftBumper = gamepad.left_bumper;
         lastRightBumper = gamepad.right_bumper;
 
@@ -258,6 +261,8 @@ public class RotatingLauncher {
         );
 
         telemetry.addData("Launcher Ready", readyToLaunch);
+        telemetry.addData("Shot Target", "%.0f",
+                LAUNCHER_BASE_TICKS + lvManualAdjustment + lvGoalDistanceAdjustment);
         telemetry.addData("Tag Adjustment", lvGoalDistanceAdjustment);
         telemetry.addData("Manual Adjustment", lvManualAdjustment);
 

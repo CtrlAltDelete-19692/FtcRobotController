@@ -42,6 +42,7 @@ public class Drive {
 
     private boolean selectPressedLast = false;
     private boolean rbPressedLast = false;
+    private boolean resetYawOnRightBumper = true;
 
     public Drive(HardwareMap hardwareMap, String driveSystem, boolean includeLimelight) {
         if (includeLimelight) {
@@ -110,7 +111,7 @@ public class Drive {
     public void update(Gamepad gamepad, Gamepad gamepad2, int teamTagId) {
         // Reset heading
         boolean rbPressed = gamepad.right_bumper;
-        if (rbPressed && !rbPressedLast) {
+        if (resetYawOnRightBumper && rbPressed && !rbPressedLast) {
             imu.resetYaw();
         }
         rbPressedLast = rbPressed;
@@ -221,6 +222,10 @@ public class Drive {
 
     public DriveMode getDriveMode() {
         return driveMode;
+    }
+
+    public void setResetYawOnRightBumper(boolean enabled) {
+        resetYawOnRightBumper = enabled;
     }
 
     public void addTelemetry(Telemetry telemetry) {
