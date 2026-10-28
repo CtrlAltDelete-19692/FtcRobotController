@@ -4,32 +4,18 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.Servo;
 
-
 @TeleOp(name = "BiobuzzTeleOp")
 
 public class BiobuzzTeleOp extends CtrlAltDelOpMode {
-
     public Drive drive;
     private RotatingLauncher pollenLauncher;
     private RotatingLauncher nectarLauncher;
     private Intake intake;
-    private Servo led;
-
-    // Current LED position from 0.0 to 1.0
-    private double ledPosition = 0.25;
-
-    // How many seconds it takes to sweep through
-    // the entire LED color range.
-    private static final double FULL_COLOR_SWEEP_SECONDS = 10.0;
-
-    // Used to calculate elapsed time between loops.
-    private long lastLoopTime;
-
     private int teamTagId = 20;
-
 
     @Override
     public void runOpMode() {
+        // Initialize Subsystems
         drive = new Drive(hardwareMap, "Biobuzz", false);
         drive.setResetYawOnRightBumper(false);
         intake = new Intake(hardwareMap, DcMotor.Direction.REVERSE);
@@ -38,18 +24,13 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
         nectarLauncher = new RotatingLauncher(hardwareMap, "Nectar", "NectarFlywheel",
                 "NectarLoader", "NectarRotatingServo", null, null);
 
-        //led = hardwareMap.get(Servo.class, "led");
-        //led.setPosition(ledPosition);
-
-        // Start our timer after the OpMode starts.
-        lastLoopTime = System.nanoTime();
-
         TelemetryDashboard dashboard = new TelemetryDashboard(telemetry);
 
         while (!isStarted()) {
             //if (gamepad1.x) changeTeam(true);
             //if (gamepad1.b) changeTeam(false);
 
+            // Telemetry Setup
             dashboard.addStatus(teamTagId, drive.getDriveMode(), killMotors);
             pollenLauncher.addTelemetry(telemetry);
             nectarLauncher.addTelemetry(telemetry);
@@ -63,72 +44,13 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
         drive.imu.resetYaw();
 
         while (opModeIsActive()) {
+            // Run update() for all subsystems
             drive.update(gamepad1, gamepad2, teamTagId);
             intake.update(gamepad1, gamepad2);
             pollenLauncher.update(gamepad1);
             nectarLauncher.update(gamepad1);
 
-            long currentTime = System.nanoTime();
-
-            double deltaTime =
-                    (currentTime - lastLoopTime) / 1_000_000_000.0;
-
-            lastLoopTime = currentTime;
-
-            // ---------------------------------------------------------
-            // LED
-            //
-            // R2 = smoothly move forward through colors
-            // L2 = smoothly move backward through colors
-            // ---------------------------------------------------------
-
-            boolean leftTrigger = gamepad1.left_trigger > 0.05;
-            boolean rightTrigger = gamepad1.right_trigger > 0.05;
-
-
-            // Amount the LED position should move this loop.
-            double colorChange =
-                    deltaTime / FULL_COLOR_SWEEP_SECONDS;
-
-
-            // ---------------------------------------------------------
-            // R2 = FORWARD THROUGH COLORS
-            // ---------------------------------------------------------
-
-//            if (rightTrigger) {
-//                ledPosition += colorChange;
-//
-//                // Wrap back around to the beginning.
-//                if (ledPosition > 0.75) {
-//                    ledPosition = 0.25;
-//                }
-//            }
-
-
-            // ---------------------------------------------------------
-            // L2 = BACKWARD THROUGH COLORS
-            // ---------------------------------------------------------
-
-            if (leftTrigger) {
-                ledPosition -= colorChange;
-
-                // Wrap around to the end.
-                if (ledPosition < 0.25) {
-                    ledPosition = 0.75;
-                }
-            }
-
-
-            // Send the new position to the LED.
-            //led.setPosition(ledPosition);
-
-//            telemetry.addData(
-//                    "LED Position",
-//                    "%.3f",
-//                    ledPosition
-//            );
-
-
+            // Telemetry
             dashboard.addStatus(teamTagId, drive.getDriveMode(), killMotors);
             pollenLauncher.addTelemetry(telemetry);
             nectarLauncher.addTelemetry(telemetry);
