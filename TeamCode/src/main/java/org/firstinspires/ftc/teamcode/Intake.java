@@ -32,7 +32,8 @@ public class Intake {
         }
         lastY = yPressed;
 
-        boolean spinLauncher = gamepad2.right_trigger > CtrlAltDelOpMode.TRIGGER_DEADZONE || intakeEnabled;
+        // boolean spinLauncher = gamepad2.right_trigger > CtrlAltDelOpMode.TRIGGER_DEADZONE || intakeEnabled;
+        boolean spinLauncher = intakeEnabled;
 
         spin(spinLauncher);
     }

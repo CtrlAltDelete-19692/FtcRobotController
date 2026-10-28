@@ -23,7 +23,7 @@ public class Launcher {
     public static final double LAUNCHER_BASE_TICKS = 1100;  // full shooting speed from 2ft
     public static final double LAUNCHER_MINIMUM_TICKS = 700;  // full shooting speed from 2ft
     public static final double TICKS_PER_FOOT = 60;  // ticks to add for each extra foot of distance, based on testing
-    public static final int LAUNCHER_TICKS_INCREMENTS = 10;  // When manually adjusting launcher, increment / decrement by this amount
+    public static final int LAUNCHER_TICKS_INCREMENTS = 25;  // When manually adjusting launcher, increment / decrement by this amount
     public static final double LAUNCHER_THRESHOLD = 0.94;  // What percentage of launcher set velocity is required to shoot
 
     public double launcherVelocity = 0;

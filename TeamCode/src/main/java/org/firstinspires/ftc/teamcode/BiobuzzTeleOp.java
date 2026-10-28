@@ -10,7 +10,8 @@ import com.qualcomm.robotcore.hardware.Servo;
 public class BiobuzzTeleOp extends CtrlAltDelOpMode {
 
     public Drive drive;
-    private RotatingLauncher launcher;
+    private RotatingLauncher pollenLauncher;
+    private RotatingLauncher nectarLauncher;
     private Intake intake;
     private Servo led;
 
@@ -32,7 +33,10 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
         drive = new Drive(hardwareMap, "Biobuzz", false);
         drive.setResetYawOnRightBumper(false);
         intake = new Intake(hardwareMap, DcMotor.Direction.REVERSE);
-        launcher = new RotatingLauncher(hardwareMap, null, null);
+        pollenLauncher = new RotatingLauncher(hardwareMap, "Pollen", "PollenFlywheel",
+                "PollenLoader", "PollenRotatingServo", null, null);
+        nectarLauncher = new RotatingLauncher(hardwareMap, "Nectar", "NectarFlywheel",
+                "NectarLoader", "NectarRotatingServo", null, null);
 
         //led = hardwareMap.get(Servo.class, "led");
         //led.setPosition(ledPosition);
@@ -47,7 +51,8 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
             //if (gamepad1.b) changeTeam(false);
 
             dashboard.addStatus(teamTagId, drive.getDriveMode(), killMotors);
-            launcher.addTelemetry(telemetry);
+            pollenLauncher.addTelemetry(telemetry);
+            nectarLauncher.addTelemetry(telemetry);
             intake.addTelemetry(telemetry);
             drive.addTelemetry(telemetry);
             dashboard.update();
@@ -60,7 +65,8 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
         while (opModeIsActive()) {
             drive.update(gamepad1, gamepad2, teamTagId);
             intake.update(gamepad1, gamepad2);
-            launcher.update(gamepad1, gamepad2);
+            pollenLauncher.update(gamepad1);
+            nectarLauncher.update(gamepad1);
 
             long currentTime = System.nanoTime();
 
@@ -124,7 +130,8 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
 
 
             dashboard.addStatus(teamTagId, drive.getDriveMode(), killMotors);
-            launcher.addTelemetry(telemetry);
+            pollenLauncher.addTelemetry(telemetry);
+            nectarLauncher.addTelemetry(telemetry);
             intake.addTelemetry(telemetry);
             drive.addTelemetry(telemetry);
             dashboard.update();

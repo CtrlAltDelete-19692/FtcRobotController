@@ -11,6 +11,7 @@ import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 
 public class RotatingLauncher {
+    private final String label;
     public AprilTag aprilTag;
     public Telemetry telemetry;
     public CRServo loader;
@@ -21,10 +22,10 @@ public class RotatingLauncher {
     private static final double LOADER_POWER = 0.5; // Between 0 and 1
     private static final int LAUNCH_TIME_MS = 400;
     private static final double LAUNCHER_IDLE_TICKS = 900;  // maintains spin
-    public static final double LAUNCHER_BASE_TICKS = 1500;  // full shooting speed from 2ft
+    public static final double LAUNCHER_BASE_TICKS = 1600;  // full shooting speed from 2ft
     public static final double LAUNCHER_MINIMUM_TICKS = 900;  // full shooting speed from 2ft
     public static final double TICKS_PER_FOOT = 60;  // ticks to add for each extra foot of distance, based on testing
-    public static final int LAUNCHER_TICKS_INCREMENTS = 10;  // When manually adjusting launcher, increment / decrement by this amount
+    public static final int LAUNCHER_TICKS_INCREMENTS = 25;  // When manually adjusting launcher, increment / decrement by this amount
     public static final double LAUNCHER_THRESHOLD = 0.94;  // What percentage of launcher set velocity is required to shoot
 
     public double launcherVelocity = 0;
@@ -50,20 +51,24 @@ public class RotatingLauncher {
 
     ServoState servoState = ServoState.IDLE;
 
-    public RotatingLauncher(HardwareMap hardwareMap, AprilTag aprilTag, Telemetry telemetry) {
-        setup(hardwareMap);
+    public RotatingLauncher(HardwareMap hardwareMap, String label, String flywheelName,
+                            String loaderName, String turretServoName, AprilTag aprilTag,
+                            Telemetry telemetry) {
+        this.label = label;
+        setup(hardwareMap, flywheelName, loaderName, turretServoName);
         this.aprilTag = aprilTag;
         this.telemetry = telemetry;
     }
 
-    public void setup(HardwareMap hardwareMap) {
-        loader = hardwareMap.tryGet(CRServo.class, "Loader");
+    private void setup(HardwareMap hardwareMap, String flywheelName, String loaderName,
+                       String turretServoName) {
+        loader = hardwareMap.tryGet(CRServo.class, loaderName);
         if (loader != null) {
             loader.setDirection(CRServo.Direction.FORWARD);
             loader.setPower(0);
         }
 
-        launcher = hardwareMap.get(DcMotorEx.class, "Launcher");
+        launcher = hardwareMap.get(DcMotorEx.class, flywheelName);
         launcher.setDirection(DcMotor.Direction.REVERSE);
         launcher.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         launcher.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
@@ -71,26 +76,26 @@ public class RotatingLauncher {
         PIDFCoefficients newCoeffs = new PIDFCoefficients(14  , 0, 0.8, 13.2);
         launcher.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, newCoeffs);
 
-        turretServo = hardwareMap.tryGet(CRServo.class, "TurretServo");
+        turretServo = hardwareMap.tryGet(CRServo.class, turretServoName);
         if (turretServo != null) {
             turretServo.setDirection(CRServo.Direction.FORWARD);
             turretServo.setPower(0);
         }
     }
 
-    public void update(Gamepad gamepad, Gamepad gamepad2) {
+    public void update(Gamepad gamepad) {
         // Do not move the loader or launcher motors unless we are on the ground!
         //boolean onGround = leftViperSlideMotor.getCurrentPosition() <= 30 && rightViperSlideMotor.getCurrentPosition() <= 30;
         //if (! onGround) {
         //    return;
         //}
 
-        launcher(gamepad, gamepad2);
-        loader(gamepad, gamepad2);
+        launcher(gamepad);
+        loader(gamepad);
         turret(gamepad);
     }
 
-    private void loader(Gamepad gamepad, Gamepad gamepad2) {
+    private void loader(Gamepad gamepad) {
         boolean minLaunchSpeed = launcher.getVelocity() >= LAUNCHER_MINIMUM_TICKS;
 
         boolean aPressed = gamepad.a;
@@ -106,7 +111,9 @@ public class RotatingLauncher {
 
     private void turret(Gamepad gamepad) {
         if (turretServo != null) {
-            if (gamepad.dpad_left) {
+            if (CtrlAltDelOpMode.killMotors) {
+                turretServo.setPower(0);
+            } else if (gamepad.dpad_left) {
                 turretServo.setPower(TURRET_SERVO_POWER);
             } else if (gamepad.dpad_right) {
                 turretServo.setPower(-TURRET_SERVO_POWER);
@@ -129,6 +136,9 @@ public class RotatingLauncher {
     private void runLoader(boolean executeLaunch) {
         if (CtrlAltDelOpMode.killMotors) {
             if (loader != null) loader.setPower(0);
+            servoState = ServoState.IDLE;
+            runningSequence = false;
+            lastLaunch = executeLaunch;
             return;
         }
 
@@ -174,9 +184,8 @@ public class RotatingLauncher {
         }
     }
 
-    private void launcher(Gamepad gamepad, Gamepad gamepad2) {
-        boolean oneController = gamepad2.right_trigger > CtrlAltDelOpMode.TRIGGER_DEADZONE && DecodeTeleOp.oneController;
-        boolean spinLauncher = gamepad.right_trigger > CtrlAltDelOpMode.TRIGGER_DEADZONE || oneController;
+    private void launcher(Gamepad gamepad) {
+        boolean spinLauncher = gamepad.right_trigger > CtrlAltDelOpMode.TRIGGER_DEADZONE;
 
         if (spinLauncher && upToSpeed()) {
             readyToLaunch = true;
@@ -254,21 +263,21 @@ public class RotatingLauncher {
 
     public void addTelemetry(Telemetry telemetry) {
         telemetry.addData(
-                "Launcher",
+                label + " Flywheel",
                 "%.0f / %.0f",
                 launcher.getVelocity(),
                 launcherVelocity
         );
 
-        telemetry.addData("Launcher Ready", readyToLaunch);
-        telemetry.addData("Shot Target", "%.0f",
+        telemetry.addData(label + " Ready", readyToLaunch);
+        telemetry.addData(label + " Shot Target", "%.0f",
                 LAUNCHER_BASE_TICKS + lvManualAdjustment + lvGoalDistanceAdjustment);
-        telemetry.addData("Tag Adjustment", lvGoalDistanceAdjustment);
-        telemetry.addData("Manual Adjustment", lvManualAdjustment);
+        telemetry.addData(label + " Tag Adjustment", lvGoalDistanceAdjustment);
+        telemetry.addData(label + " Manual Adjustment", lvManualAdjustment);
 
         if (loader != null) {
             telemetry.addData(
-                    "Loader",
+                    label + " Loader",
                     "%.0f%%",
                     loader.getPower() * 100
             );
@@ -276,7 +285,7 @@ public class RotatingLauncher {
 
         if (turretServo != null) {
             telemetry.addData(
-                    "Turret",
+                    label + " Turret",
                     "%.0f%%",
                     turretServo.getPower() * 100
             );
