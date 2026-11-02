@@ -22,7 +22,7 @@ public class RotatingLauncher {
     private static final double LOADER_POWER = 0.5; // Between 0 and 1
     private static final int LAUNCH_TIME_MS = 400;
     private static final double LAUNCHER_IDLE_TICKS = 900;  // maintains spin
-    public static final double LAUNCHER_BASE_TICKS = 1600;  // full shooting speed from 2ft
+    public static final double LAUNCHER_BASE_TICKS = 1280;  // full shooting speed from 2ft
     public static final double LAUNCHER_MINIMUM_TICKS = 900;  // full shooting speed from 2ft
     public static final double TICKS_PER_FOOT = 60;  // ticks to add for each extra foot of distance, based on testing
     public static final int LAUNCHER_TICKS_INCREMENTS = 25;  // When manually adjusting launcher, increment / decrement by this amount
