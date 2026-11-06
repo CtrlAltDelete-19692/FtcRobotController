@@ -40,6 +40,18 @@ public class RotatingLauncher {
     public CRServo turretServo;
     private TouchSensor centerSwitch;
     public static final double TURRET_SERVO_POWER = 1.0;
+    private static final double HOME_POWER = 0.25;
+    private static final long HOME_CLEAR_TIMEOUT_MS = 500;
+    private static final long HOME_FIRST_SEARCH_MS = 750;
+    private static final long HOME_REVERSE_SEARCH_MS = 1500;
+    private HomeState homeState = HomeState.IDLE;
+    private long homeStageStartTime;
+    private boolean lastHomeButton;
+
+    private enum HomeState {
+        IDLE, CLEARING, SEARCHING_FIRST, SEARCHING_REVERSE,
+        HOMED, FAILED, CANCELED, UNAVAILABLE
+    }
 
     long actionStartTime = 0;
     private boolean lastLeftBumper = false;
@@ -93,6 +105,10 @@ public class RotatingLauncher {
 
         launcher(gamepad);
         loader(gamepad);
+        if (gamepad.dpad_up && !lastHomeButton) {
+            startHoming();
+        }
+        lastHomeButton = gamepad.dpad_up;
         turret(gamepad);
     }
 
@@ -111,17 +127,82 @@ public class RotatingLauncher {
     }
 
     private void turret(Gamepad gamepad) {
-        if (turretServo != null) {
-            if (CtrlAltDelOpMode.killMotors) {
-                turretServo.setPower(0);
-            } else if (gamepad.dpad_left) {
-                turretServo.setPower(TURRET_SERVO_POWER);
-            } else if (gamepad.dpad_right) {
-                turretServo.setPower(-TURRET_SERVO_POWER);
-            } else {
-                turretServo.setPower(0);
-            }
+        if (turretServo == null) return;
+
+        if (CtrlAltDelOpMode.killMotors) {
+            if (isHoming()) homeState = HomeState.CANCELED;
+            turretServo.setPower(0);
+        } else if (gamepad.dpad_left || gamepad.dpad_right) {
+            if (isHoming()) homeState = HomeState.CANCELED;
+            turretServo.setPower(gamepad.dpad_left ? TURRET_SERVO_POWER : -TURRET_SERVO_POWER);
+        } else if (isHoming()) {
+            updateHoming();
+        } else {
+            turretServo.setPower(0);
         }
+    }
+
+    public void startHoming() {
+        if (turretServo == null || centerSwitch == null) {
+            homeState = HomeState.UNAVAILABLE;
+            return;
+        }
+        if (CtrlAltDelOpMode.killMotors) {
+            homeState = HomeState.CANCELED;
+            turretServo.setPower(0);
+            return;
+        }
+
+        setHomeState(centerSwitch.isPressed() ? HomeState.CLEARING : HomeState.SEARCHING_FIRST);
+    }
+
+    private boolean isHoming() {
+        return homeState == HomeState.CLEARING
+                || homeState == HomeState.SEARCHING_FIRST
+                || homeState == HomeState.SEARCHING_REVERSE;
+    }
+
+    private void setHomeState(HomeState state) {
+        homeState = state;
+        homeStageStartTime = System.currentTimeMillis();
+    }
+
+    private void updateHoming() {
+        long elapsed = System.currentTimeMillis() - homeStageStartTime;
+
+        if (homeState == HomeState.CLEARING) {
+            if (!centerSwitch.isPressed()) {
+                setHomeState(HomeState.SEARCHING_FIRST);
+                turretServo.setPower(HOME_POWER);
+            } else if (elapsed >= HOME_CLEAR_TIMEOUT_MS) {
+                homeState = HomeState.FAILED;
+                turretServo.setPower(0);
+            } else {
+                turretServo.setPower(-HOME_POWER);
+            }
+            return;
+        }
+
+        if (centerSwitch.isPressed()) {
+            homeState = HomeState.HOMED;
+            turretServo.setPower(0);
+        } else if (homeState == HomeState.SEARCHING_FIRST) {
+            if (elapsed >= HOME_FIRST_SEARCH_MS) {
+                setHomeState(HomeState.SEARCHING_REVERSE);
+                turretServo.setPower(-HOME_POWER);
+            } else {
+                turretServo.setPower(HOME_POWER);
+            }
+        } else if (elapsed >= HOME_REVERSE_SEARCH_MS) {
+            homeState = HomeState.FAILED;
+            turretServo.setPower(0);
+        } else {
+            turretServo.setPower(-HOME_POWER);
+        }
+    }
+
+    public void stopTurret() {
+        if (turretServo != null) turretServo.setPower(0);
     }
 
     // Call this from autonomous when you want to launch
@@ -293,6 +374,7 @@ public class RotatingLauncher {
             telemetry.addData(label + " Center Switch",
                     centerSwitch == null ? "Not configured" :
                             centerSwitch.isPressed() ? "Detected" : "Clear");
+            telemetry.addData(label + " Home", homeState);
         }
     }
 }

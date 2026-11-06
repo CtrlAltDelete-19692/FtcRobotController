@@ -53,6 +53,7 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
         waitForStart();
 
         drive.imu.resetYaw();
+        pollenLauncher.startHoming();
 
         while (opModeIsActive()) {
             // Run update() for all subsystems
@@ -70,6 +71,7 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
             drive.addTelemetry(telemetry);
             dashboard.update();
         }
+        pollenLauncher.stopTurret();
     }
 
     private void changeTeam(boolean blue) {
