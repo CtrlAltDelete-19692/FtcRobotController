@@ -10,7 +10,7 @@ public class Intake {
 
     public DcMotor pickupMotor;
 
-    public static final double INTAKE_POWER = 0.8;  // Default power for pickup intake, 0 to 1
+    public static final double INTAKE_POWER = 1;  // Default power for pickup intake, 0 to 1
     private boolean intakeEnabled = true;
     private boolean lastY = false;
 

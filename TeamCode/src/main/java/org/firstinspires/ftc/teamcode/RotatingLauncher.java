@@ -1,5 +1,7 @@
 package org.firstinspires.ftc.teamcode;
 
+import com.qualcomm.hardware.limelightvision.LLResult;
+import com.qualcomm.hardware.limelightvision.LLResultTypes;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
@@ -7,7 +9,9 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
+import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.hardware.TouchSensor;
+import com.qualcomm.robotcore.util.Range;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 
@@ -39,18 +43,42 @@ public class RotatingLauncher {
     // Turret
     public CRServo turretServo;
     private TouchSensor centerSwitch;
+    private Servo led;
     public static final double TURRET_SERVO_POWER = 1.0;
-    private static final double HOME_POWER = 0.25;
+    private static final double LED_RED_POSITION = 0.28;
+    private static final double LED_BLUE_POSITION = 0.61;
+    private static final double LED_GREEN_POSITION = 0.50;
+    private static final double HOME_POWER = 0.35;
+    private static final double HOME_FINE_POWER = 0.10;
     private static final long HOME_CLEAR_TIMEOUT_MS = 500;
-    private static final long HOME_FIRST_SEARCH_MS = 750;
-    private static final long HOME_REVERSE_SEARCH_MS = 1500;
+    private static final long HOME_FIRST_SEARCH_MS = 850;
+    private static final long HOME_REVERSE_SEARCH_MS = 1300;
+    private static final long HOME_FINE_CLEAR_TIMEOUT_MS = 1500;
+    private static final long HOME_FINE_SEARCH_TIMEOUT_MS = 2000;
+    private static final double TRACK_KP = 0.025;
+    private static final double TRACK_MIN_POWER = 0.10;
+    private static final double TRACK_MAX_POWER = 0.25;
+    private static final double TRACK_DIRECTION = -1.0; // Reverse if positive tx moves farther from zero.
+    private static final double TRACK_DEADBAND_DEGREES = 1.0;
+    private static final long TRACK_TIMEOUT_MS = 10000;
     private HomeState homeState = HomeState.IDLE;
     private long homeStageStartTime;
+    private double fineApproachDirection;
     private boolean lastHomeButton;
+    private boolean lastTrackButton;
+    private boolean trackingEnabled;
+    private TrackingState trackingState = TrackingState.IDLE;
+    private int trackedTagId = -1;
+    private double trackedTx = Double.NaN;
+    private long trackingStartTime;
 
     private enum HomeState {
         IDLE, CLEARING, SEARCHING_FIRST, SEARCHING_REVERSE,
-        HOMED, FAILED, CANCELED, UNAVAILABLE
+        FINE_CLEARING, FINE_SEARCHING, HOMED, FAILED, CANCELED, UNAVAILABLE
+    }
+
+    private enum TrackingState {
+        IDLE, TRACKING, ALIGNED, NO_TAG, LOST, TIMED_OUT, CANCELED
     }
 
     long actionStartTime = 0;
@@ -94,9 +122,16 @@ public class RotatingLauncher {
             turretServo.setPower(0);
             centerSwitch = hardwareMap.tryGet(TouchSensor.class, label + "CenterSwitch");
         }
+
+        led = hardwareMap.tryGet(Servo.class, label + "Led");
+        updateLed();
     }
 
     public void update(Gamepad gamepad) {
+        update(gamepad, null, false);
+    }
+
+    public void update(Gamepad gamepad, LLResult result, boolean isBlue) {
         // Do not move the loader or launcher motors unless we are on the ground!
         //boolean onGround = leftViperSlideMotor.getCurrentPosition() <= 30 && rightViperSlideMotor.getCurrentPosition() <= 30;
         //if (! onGround) {
@@ -109,7 +144,8 @@ public class RotatingLauncher {
             startHoming();
         }
         lastHomeButton = gamepad.dpad_up;
-        turret(gamepad);
+        turret(gamepad, result, isBlue);
+        updateLed();
     }
 
     private void loader(Gamepad gamepad) {
@@ -126,19 +162,113 @@ public class RotatingLauncher {
         runLoader(executeLaunch);
     }
 
-    private void turret(Gamepad gamepad) {
-        if (turretServo == null) return;
+    private void turret(Gamepad gamepad, LLResult result, boolean isBlue) {
+        boolean trackPressed = gamepad.dpad_down;
+        if (trackPressed && !lastTrackButton && !isHoming()) {
+            trackingEnabled = !trackingEnabled;
+            if (trackingEnabled) {
+                trackingState = TrackingState.NO_TAG;
+                trackedTagId = -1;
+                trackedTx = Double.NaN;
+            } else {
+                trackingState = TrackingState.IDLE;
+                trackedTagId = -1;
+                trackedTx = Double.NaN;
+            }
+        }
+        lastTrackButton = trackPressed;
+        if (turretServo == null) {
+            trackingEnabled = false;
+            return;
+        }
 
         if (CtrlAltDelOpMode.killMotors) {
             if (isHoming()) homeState = HomeState.CANCELED;
+            cancelTracking();
             turretServo.setPower(0);
         } else if (gamepad.dpad_left || gamepad.dpad_right) {
             if (isHoming()) homeState = HomeState.CANCELED;
+            cancelTracking();
             turretServo.setPower(gamepad.dpad_left ? TURRET_SERVO_POWER : -TURRET_SERVO_POWER);
         } else if (isHoming()) {
+            cancelTracking();
             updateHoming();
+        } else if (trackingEnabled) {
+            updateTracking(result, isBlue);
         } else {
             turretServo.setPower(0);
+        }
+    }
+
+    private void updateTracking(LLResult result, boolean isBlue) {
+        if (trackedTagId != -1 && System.currentTimeMillis() - trackingStartTime >= TRACK_TIMEOUT_MS) {
+            trackingEnabled = false;
+            trackingState = TrackingState.TIMED_OUT;
+            turretServo.setPower(0);
+            return;
+        }
+        if (result == null || !result.isValid() || result.getFiducialResults() == null) {
+            trackingState = trackedTagId == -1 ? TrackingState.NO_TAG : TrackingState.LOST;
+            turretServo.setPower(0);
+            return;
+        }
+
+        if (trackedTagId == -1) {
+            double closestTx = Double.POSITIVE_INFINITY;
+            for (LLResultTypes.FiducialResult tag : result.getFiducialResults()) {
+                int id = tag.getFiducialId();
+                double tx = tag.getTargetXDegrees();
+                if ((isBlue ? id < 38 || id > 45 : id < 30 || id > 37)
+                        || !Double.isFinite(tx)) continue;
+                if (Math.abs(tx) < closestTx) {
+                    closestTx = Math.abs(tx);
+                    trackedTagId = id;
+                }
+            }
+            if (trackedTagId != -1) trackingStartTime = System.currentTimeMillis();
+        }
+
+        for (LLResultTypes.FiducialResult tag : result.getFiducialResults()) {
+            if (tag.getFiducialId() != trackedTagId) continue;
+            trackedTx = tag.getTargetXDegrees();
+            if (!Double.isFinite(trackedTx)) break;
+            if (Math.abs(trackedTx) <= TRACK_DEADBAND_DEGREES) {
+                trackingState = TrackingState.ALIGNED;
+                turretServo.setPower(0);
+            } else {
+                trackingState = TrackingState.TRACKING;
+                double power = Range.clip(TRACK_KP * trackedTx, -TRACK_MAX_POWER, TRACK_MAX_POWER);
+                if (Math.abs(power) < TRACK_MIN_POWER) {
+                    power = Math.copySign(TRACK_MIN_POWER, power);
+                }
+                turretServo.setPower(TRACK_DIRECTION * power);
+            }
+            return;
+        }
+
+        trackingState = trackedTagId == -1 ? TrackingState.NO_TAG : TrackingState.LOST;
+        turretServo.setPower(0);
+    }
+
+    private void cancelTracking() {
+        if (trackingEnabled) {
+            trackingEnabled = false;
+            trackingState = TrackingState.CANCELED;
+        }
+    }
+
+    public boolean isTrackingEnabled() {
+        return trackingEnabled;
+    }
+
+    private boolean isTrackedTagVisible() {
+        return trackingState == TrackingState.TRACKING || trackingState == TrackingState.ALIGNED;
+    }
+
+    private void updateLed() {
+        if (led != null) {
+            led.setPosition(!trackingEnabled ? LED_RED_POSITION :
+                    isTrackedTagVisible() ? LED_GREEN_POSITION : LED_BLUE_POSITION);
         }
     }
 
@@ -159,7 +289,9 @@ public class RotatingLauncher {
     private boolean isHoming() {
         return homeState == HomeState.CLEARING
                 || homeState == HomeState.SEARCHING_FIRST
-                || homeState == HomeState.SEARCHING_REVERSE;
+                || homeState == HomeState.SEARCHING_REVERSE
+                || homeState == HomeState.FINE_CLEARING
+                || homeState == HomeState.FINE_SEARCHING;
     }
 
     private void setHomeState(HomeState state) {
@@ -167,42 +299,83 @@ public class RotatingLauncher {
         homeStageStartTime = System.currentTimeMillis();
     }
 
+    private void startFineHoming(double searchDirection) {
+        fineApproachDirection = -searchDirection;
+        setHomeState(HomeState.FINE_CLEARING);
+        turretServo.setPower(searchDirection * HOME_FINE_POWER);
+    }
+
     private void updateHoming() {
         long elapsed = System.currentTimeMillis() - homeStageStartTime;
 
-        if (homeState == HomeState.CLEARING) {
-            if (!centerSwitch.isPressed()) {
-                setHomeState(HomeState.SEARCHING_FIRST);
-                turretServo.setPower(HOME_POWER);
-            } else if (elapsed >= HOME_CLEAR_TIMEOUT_MS) {
-                homeState = HomeState.FAILED;
-                turretServo.setPower(0);
-            } else {
-                turretServo.setPower(-HOME_POWER);
-            }
-            return;
-        }
+        switch (homeState) {
+            case CLEARING:
+                if (!centerSwitch.isPressed()) {
+                    setHomeState(HomeState.SEARCHING_FIRST);
+                    turretServo.setPower(HOME_POWER);
+                } else if (elapsed >= HOME_CLEAR_TIMEOUT_MS) {
+                    homeState = HomeState.FAILED;
+                    turretServo.setPower(0);
+                } else {
+                    turretServo.setPower(-HOME_POWER);
+                }
+                break;
 
-        if (centerSwitch.isPressed()) {
-            homeState = HomeState.HOMED;
-            turretServo.setPower(0);
-        } else if (homeState == HomeState.SEARCHING_FIRST) {
-            if (elapsed >= HOME_FIRST_SEARCH_MS) {
-                setHomeState(HomeState.SEARCHING_REVERSE);
-                turretServo.setPower(-HOME_POWER);
-            } else {
-                turretServo.setPower(HOME_POWER);
-            }
-        } else if (elapsed >= HOME_REVERSE_SEARCH_MS) {
-            homeState = HomeState.FAILED;
-            turretServo.setPower(0);
-        } else {
-            turretServo.setPower(-HOME_POWER);
+            case SEARCHING_FIRST:
+                if (centerSwitch.isPressed()) {
+                    startFineHoming(1.0);
+                } else if (elapsed >= HOME_FIRST_SEARCH_MS) {
+                    setHomeState(HomeState.SEARCHING_REVERSE);
+                    turretServo.setPower(-HOME_POWER);
+                } else {
+                    turretServo.setPower(HOME_POWER);
+                }
+                break;
+
+            case SEARCHING_REVERSE:
+                if (centerSwitch.isPressed()) {
+                    startFineHoming(-1.0);
+                } else if (elapsed >= HOME_REVERSE_SEARCH_MS) {
+                    homeState = HomeState.FAILED;
+                    turretServo.setPower(0);
+                } else {
+                    turretServo.setPower(-HOME_POWER);
+                }
+                break;
+
+            case FINE_CLEARING:
+                if (!centerSwitch.isPressed()) {
+                    setHomeState(HomeState.FINE_SEARCHING);
+                    turretServo.setPower(fineApproachDirection * HOME_FINE_POWER);
+                } else if (elapsed >= HOME_FINE_CLEAR_TIMEOUT_MS) {
+                    homeState = HomeState.FAILED;
+                    turretServo.setPower(0);
+                } else {
+                    turretServo.setPower(-fineApproachDirection * HOME_FINE_POWER);
+                }
+                break;
+
+            case FINE_SEARCHING:
+                if (centerSwitch.isPressed()) {
+                    homeState = HomeState.HOMED;
+                    turretServo.setPower(0);
+                } else if (elapsed >= HOME_FINE_SEARCH_TIMEOUT_MS) {
+                    homeState = HomeState.FAILED;
+                    turretServo.setPower(0);
+                } else {
+                    turretServo.setPower(fineApproachDirection * HOME_FINE_POWER);
+                }
+                break;
+
+            default:
+                turretServo.setPower(0);
         }
     }
 
     public void stopTurret() {
+        trackingEnabled = false;
         if (turretServo != null) turretServo.setPower(0);
+        updateLed();
     }
 
     // Call this from autonomous when you want to launch
@@ -376,5 +549,13 @@ public class RotatingLauncher {
                             centerSwitch.isPressed() ? "Detected" : "Clear");
             telemetry.addData(label + " Home", homeState);
         }
+        telemetry.addData(label + " Tracking Enabled", trackingEnabled);
+        telemetry.addData(label + " Tag Tracking", trackingState);
+        if (trackedTagId != -1) {
+            telemetry.addData(label + " Tracked Tag", trackedTagId);
+            telemetry.addData(label + " Tracking tx", "%.1f deg", trackedTx);
+        }
+        telemetry.addData(label + " LED", led == null ? "Not configured" :
+                !trackingEnabled ? "Red" : isTrackedTagVisible() ? "Green" : "Blue");
     }
 }

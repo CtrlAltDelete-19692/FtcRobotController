@@ -5,6 +5,7 @@ import com.qualcomm.hardware.limelightvision.LLResultTypes;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
 
 import java.util.List;
 
@@ -24,7 +25,7 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
         // Initialize Subsystems
         drive = new Drive(hardwareMap, "Biobuzz", false);
         drive.setResetYawOnRightBumper(false);
-        intake = new Intake(hardwareMap, DcMotor.Direction.REVERSE);
+        intake = new Intake(hardwareMap, DcMotor.Direction.FORWARD);
         pollenLauncher = new RotatingLauncher(hardwareMap, "Pollen", null, null);
         //nectarLauncher = new RotatingLauncher(hardwareMap, "Nectar", null, null);
         limelight = hardwareMap.tryGet(Limelight3A.class, "Limelight");
@@ -57,16 +58,17 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
 
         while (opModeIsActive()) {
             // Run update() for all subsystems
+            LLResult result = limelight == null ? null : limelight.getLatestResult();
             drive.update(gamepad1, gamepad2);
             intake.update(gamepad1, gamepad2);
-            pollenLauncher.update(gamepad1);
+            pollenLauncher.update(gamepad1, result, isBlue);
             //nectarLauncher.update(gamepad1);
 
             // Telemetry
             dashboard.addStatus(isBlue, drive.getDriveMode(), killMotors);
             pollenLauncher.addTelemetry(telemetry);
             //nectarLauncher.addTelemetry(telemetry);
-            addLimelightTelemetry();
+            addLimelightTelemetry(result);
             intake.addTelemetry(telemetry);
             drive.addTelemetry(telemetry);
             dashboard.update();
@@ -86,12 +88,15 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
     }
 
     private void addLimelightTelemetry() {
+        addLimelightTelemetry(limelight == null ? null : limelight.getLatestResult());
+    }
+
+    private void addLimelightTelemetry(LLResult result) {
         if (limelight == null) {
             telemetry.addData("Limelight", "Not configured");
             return;
         }
 
-        LLResult result = limelight.getLatestResult();
         if (result == null || !result.isValid()) {
             telemetry.addData("Limelight", "No valid result");
             return;
