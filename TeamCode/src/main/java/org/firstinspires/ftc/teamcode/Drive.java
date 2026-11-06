@@ -109,6 +109,10 @@ public class Drive {
     }
 
     public void update(Gamepad gamepad, Gamepad gamepad2, int teamTagId) {
+        update(gamepad, gamepad2);
+    }
+
+    public void update(Gamepad gamepad, Gamepad gamepad2) {
         // Reset heading
         boolean rbPressed = gamepad.right_bumper;
         if (resetYawOnRightBumper && rbPressed && !rbPressedLast) {
@@ -158,13 +162,17 @@ public class Drive {
 
         boolean oneController = gamepad.right_trigger > CtrlAltDelOpMode.TRIGGER_DEADZONE && DecodeTeleOp.oneController;
         if (gamepad2.right_trigger > CtrlAltDelOpMode.TRIGGER_DEADZONE || oneController) {
-            rotate = getAutoRotate(rotate, teamTagId);
+            rotate = getAutoRotate(rotate);
         }
 
         drive(strafe, forward, rotate, speedLimit);
     }
 
     public double getAutoRotate(double rotate, int teamTagId) {
+        return getAutoRotate(rotate);
+    }
+
+    public double getAutoRotate(double rotate) {
         if (limelight == null) {
             return rotate;
         }

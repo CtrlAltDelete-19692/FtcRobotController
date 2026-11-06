@@ -7,6 +7,7 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
+import com.qualcomm.robotcore.hardware.TouchSensor;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 
@@ -37,6 +38,7 @@ public class RotatingLauncher {
 
     // Turret
     public CRServo turretServo;
+    private TouchSensor centerSwitch;
     public static final double TURRET_SERVO_POWER = 1.0;
 
     long actionStartTime = 0;
@@ -51,24 +53,22 @@ public class RotatingLauncher {
 
     ServoState servoState = ServoState.IDLE;
 
-    public RotatingLauncher(HardwareMap hardwareMap, String label, String flywheelName,
-                            String loaderName, String turretServoName, AprilTag aprilTag,
+    public RotatingLauncher(HardwareMap hardwareMap, String label, AprilTag aprilTag,
                             Telemetry telemetry) {
         this.label = label;
-        setup(hardwareMap, flywheelName, loaderName, turretServoName);
+        setup(hardwareMap);
         this.aprilTag = aprilTag;
         this.telemetry = telemetry;
     }
 
-    private void setup(HardwareMap hardwareMap, String flywheelName, String loaderName,
-                       String turretServoName) {
-        loader = hardwareMap.tryGet(CRServo.class, loaderName);
+    private void setup(HardwareMap hardwareMap) {
+        loader = hardwareMap.tryGet(CRServo.class, label + "Loader");
         if (loader != null) {
             loader.setDirection(CRServo.Direction.FORWARD);
             loader.setPower(0);
         }
 
-        launcher = hardwareMap.get(DcMotorEx.class, flywheelName);
+        launcher = hardwareMap.get(DcMotorEx.class, label + "Flywheel");
         launcher.setDirection(DcMotor.Direction.REVERSE);
         launcher.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         launcher.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
@@ -76,10 +76,11 @@ public class RotatingLauncher {
         PIDFCoefficients newCoeffs = new PIDFCoefficients(14  , 0, 0.8, 13.2);
         launcher.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, newCoeffs);
 
-        turretServo = hardwareMap.tryGet(CRServo.class, turretServoName);
+        turretServo = hardwareMap.tryGet(CRServo.class, label + "RotatingServo");
         if (turretServo != null) {
             turretServo.setDirection(CRServo.Direction.FORWARD);
             turretServo.setPower(0);
+            centerSwitch = hardwareMap.tryGet(TouchSensor.class, label + "CenterSwitch");
         }
     }
 
@@ -289,6 +290,9 @@ public class RotatingLauncher {
                     "%.0f%%",
                     turretServo.getPower() * 100
             );
+            telemetry.addData(label + " Center Switch",
+                    centerSwitch == null ? "Not configured" :
+                            centerSwitch.isPressed() ? "Detected" : "Clear");
         }
     }
 }
