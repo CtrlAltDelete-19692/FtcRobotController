@@ -23,7 +23,7 @@ public class RotatingLauncher {
 
     public DcMotorEx launcher;
 
-    private static final double LOADER_IDLE_POWER = 0.1; // Between 0 and 1
+    private static final double LOADER_IDLE_POWER = 0; // Between 0 and 1
     private static final double LOADER_POWER = 0.5; // Between 0 and 1
     private static final int LAUNCH_TIME_MS = 400;
     private static final double LAUNCHER_IDLE_TICKS = 900;  // maintains spin
@@ -46,8 +46,9 @@ public class RotatingLauncher {
     private Servo led;
     public static final double TURRET_SERVO_POWER = 1.0;
     private static final double LED_RED_POSITION = 0.28;
-    private static final double LED_BLUE_POSITION = 0.61;
     private static final double LED_GREEN_POSITION = 0.50;
+    private static final double LED_OFF_POSITION = 0.0;
+    private static final long LED_BLINK_PERIOD_MS = 1000;
     private static final double HOME_POWER = 0.35;
     private static final double HOME_FINE_POWER = 0.10;
     private static final long HOME_CLEAR_TIMEOUT_MS = 500;
@@ -56,11 +57,11 @@ public class RotatingLauncher {
     private static final long HOME_FINE_CLEAR_TIMEOUT_MS = 1500;
     private static final long HOME_FINE_SEARCH_TIMEOUT_MS = 2000;
     private static final double TRACK_KP = 0.025;
-    private static final double TRACK_MIN_POWER = 0.10;
-    private static final double TRACK_MAX_POWER = 0.25;
+    private static final double TRACK_MIN_POWER = 0.1;
+    private static final double TRACK_MAX_POWER = 0.5;
     private static final double TRACK_DIRECTION = -1.0; // Reverse if positive tx moves farther from zero.
     private static final double TRACK_DEADBAND_DEGREES = 1.0;
-    private static final long TRACK_TIMEOUT_MS = 10000;
+    private static final long TRACK_TIMEOUT_MS = 25000;
     private HomeState homeState = HomeState.IDLE;
     private long homeStageStartTime;
     private double fineApproachDirection;
@@ -149,13 +150,18 @@ public class RotatingLauncher {
     }
 
     private void loader(Gamepad gamepad) {
+        if (gamepad.b && !gamepad.start && !CtrlAltDelOpMode.killMotors && loader != null) {
+            servoState = ServoState.IDLE;
+            runningSequence = false;
+            lastLaunch = false;
+            loader.setDirection(CRServo.Direction.FORWARD);
+            loader.setPower(1.0);
+            return;
+        }
+
         boolean minLaunchSpeed = launcher.getVelocity() >= LAUNCHER_MINIMUM_TICKS;
-
-        boolean aPressed = gamepad.a;
-        boolean bPressed = gamepad.b;
-
         boolean executeLaunch =
-                ((aPressed && readyToLaunch) || bPressed)
+                gamepad.a && readyToLaunch
                         && !gamepad.start
                         && minLaunchSpeed;
 
@@ -268,7 +274,8 @@ public class RotatingLauncher {
     private void updateLed() {
         if (led != null) {
             led.setPosition(!trackingEnabled ? LED_RED_POSITION :
-                    isTrackedTagVisible() ? LED_GREEN_POSITION : LED_BLUE_POSITION);
+                    isTrackedTagVisible() || System.currentTimeMillis() % LED_BLINK_PERIOD_MS < LED_BLINK_PERIOD_MS / 2
+                            ? LED_GREEN_POSITION : LED_OFF_POSITION);
         }
     }
 
@@ -556,6 +563,6 @@ public class RotatingLauncher {
             telemetry.addData(label + " Tracking tx", "%.1f deg", trackedTx);
         }
         telemetry.addData(label + " LED", led == null ? "Not configured" :
-                !trackingEnabled ? "Red" : isTrackedTagVisible() ? "Green" : "Blue");
+                !trackingEnabled ? "Red" : isTrackedTagVisible() ? "Green" : "Blinking green");
     }
 }
