@@ -14,6 +14,7 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
     private Drive drive;
     private AutonomousDriveCommands autoDrive;
     private Intake intake;
+    private FlowerPuller flowerPuller;
     private RotatingLauncher launcher;
     private Limelight3A limelight;
     private boolean isBlue = true;
@@ -26,6 +27,7 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
         drive = new Drive(hardwareMap, "Biobuzz", false);
         autoDrive = new AutonomousDriveCommands(this, drive);
         intake = new Intake(hardwareMap, DcMotor.Direction.FORWARD);
+        flowerPuller = new FlowerPuller(hardwareMap);
         launcher = new RotatingLauncher(hardwareMap, "Pollen", null, null);
         limelight = hardwareMap.tryGet(Limelight3A.class, "Limelight");
         if (limelight != null) limelight.start();
@@ -43,12 +45,14 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
             telemetry.addData("Feed target", ballCount + " balls (timed)");
             telemetry.addData("Hopper", intake.hasHopper() ? "✅ Configured" : "⚠ Missing");
             telemetry.addData("Loader", launcher.hasLoader() ? "✅ Configured" : "⚠ Missing");
+            telemetry.addData("FlowerPuller", flowerPuller.isConfigured() ? "✅ Configured" : "⚠ Missing");
             telemetry.addLine("Place robot aimed at the HIVE; this program does not drive.");
             dashboard.update();
         }
 
         if (isStopRequested()) return;
         waitForStart();
+        flowerPuller.setUp();
         telemetry.clearAll();
 
         try {

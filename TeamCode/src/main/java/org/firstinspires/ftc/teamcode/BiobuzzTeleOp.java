@@ -15,6 +15,7 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
     private RotatingLauncher pollenLauncher;
     private RotatingLauncher nectarLauncher;
     private Intake intake;
+    private FlowerPuller flowerPuller;
     private Limelight3A limelight;
     private boolean isBlue = true;
     private int selectedPipeline = -1;
@@ -30,6 +31,7 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
         drive.setResetYawOnRightBumper(false);
         intake = new Intake(hardwareMap, DcMotor.Direction.FORWARD);
         intake.enableJamRecovery();
+        flowerPuller = new FlowerPuller(hardwareMap);
         pollenLauncher = new RotatingLauncher(hardwareMap, "Pollen", null, null);
         //nectarLauncher = new RotatingLauncher(hardwareMap, "Nectar", null, null);
         limelight = hardwareMap.tryGet(Limelight3A.class, "Limelight");
@@ -53,11 +55,13 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
             telemetry.addData("RB Flywheel", pollenLauncher.isFlywheelEnabled() ? "ON" : "OFF");
             telemetry.addLine("Flywheel speed: gamepad 2 LB / RB");
             telemetry.addLine("Loader: hold A (ready + tag) / B (manual)");
+            telemetry.addData("FlowerPuller", flowerPuller.isConfigured() ? "✅ Configured" : "⚠ Missing");
             dashboard.update();
         }
 
         if (isStopRequested()) return;
         waitForStart();
+        flowerPuller.setUp();
         telemetry.clearAll();
         lastKillButton = gamepad1.x;
         lastDebugButton = gamepad2.x;
@@ -75,6 +79,7 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
             LLResult result = limelight == null ? null : limelight.getLatestResult();
             drive.update(gamepad1, gamepad2);
             intake.update(gamepad1, gamepad2);
+            flowerPuller.update(gamepad2);
             pollenLauncher.update(gamepad1, gamepad2, result, isBlue);
             intake.onLoaderRunning(pollenLauncher.isLoaderRunning());
             intake.updateHopperStall();
