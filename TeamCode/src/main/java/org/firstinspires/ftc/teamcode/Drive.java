@@ -241,6 +241,16 @@ public class Drive {
         telemetry.addData("Heading", "%.1f deg", headingDeg);
     }
 
+    public void addDebugTelemetry(Telemetry telemetry) {
+        addTelemetry(telemetry);
+        telemetry.addData("Drive front FL/FR", "%.0f%% / %.0f%%   %d / %d ticks",
+                LFM * 100, RFM * 100,
+                leftFrontMotor.getCurrentPosition(), rightFrontMotor.getCurrentPosition());
+        telemetry.addData("Drive back BL/BR", "%.0f%% / %.0f%%   %d / %d ticks",
+                LBM * 100, RBM * 100,
+                leftBackMotor.getCurrentPosition(), rightBackMotor.getCurrentPosition());
+    }
+
     public void setDriveMode(DriveMode driveMode) {
         this.driveMode = driveMode;
     }

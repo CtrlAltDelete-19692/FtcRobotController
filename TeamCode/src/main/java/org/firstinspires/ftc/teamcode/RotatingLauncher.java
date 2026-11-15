@@ -24,7 +24,8 @@ public class RotatingLauncher {
     public DcMotorEx launcher;
 
     private static final double LOADER_IDLE_POWER = 0; // Between 0 and 1
-    private static final double LOADER_POWER = 0.5; // Between 0 and 1
+    private static final double LOADER_POWER = 0.4; // Between 0 and 1
+    private static final double LOADER_FAST_POWER = 0.4;
     private static final int LAUNCH_TIME_MS = 400;
     private static final double LAUNCHER_IDLE_TICKS = 900;  // maintains spin
     public static final double LAUNCHER_BASE_TICKS = 1280;  // full shooting speed from 2ft
@@ -85,6 +86,10 @@ public class RotatingLauncher {
     long actionStartTime = 0;
     private boolean lastLeftBumper = false;
     private boolean lastRightBumper = false;
+    private boolean lastLoaderButton;
+    private boolean lastFlywheelButton;
+    private boolean loaderEnabled;
+    private boolean flywheelEnabled = true;
 
     enum ServoState {
         IDLE,
@@ -129,17 +134,41 @@ public class RotatingLauncher {
     }
 
     public void update(Gamepad gamepad) {
-        update(gamepad, null, false);
+        update(gamepad, null, null, false);
     }
 
     public void update(Gamepad gamepad, LLResult result, boolean isBlue) {
+        update(gamepad, null, result, isBlue);
+    }
+
+    public void updateEnabled(Gamepad gamepad) {
+        if (gamepad.left_bumper && !lastLoaderButton) loaderEnabled = !loaderEnabled;
+        if (gamepad.right_bumper && !lastFlywheelButton) flywheelEnabled = !flywheelEnabled;
+        lastLoaderButton = gamepad.left_bumper;
+        lastFlywheelButton = gamepad.right_bumper;
+    }
+
+    public boolean isLoaderEnabled() {
+        return loaderEnabled;
+    }
+
+    public boolean hasLoader() {
+        return loader != null;
+    }
+
+    public boolean isFlywheelEnabled() {
+        return flywheelEnabled;
+    }
+
+    public void update(Gamepad gamepad, Gamepad gamepad2, LLResult result, boolean isBlue) {
         // Do not move the loader or launcher motors unless we are on the ground!
         //boolean onGround = leftViperSlideMotor.getCurrentPosition() <= 30 && rightViperSlideMotor.getCurrentPosition() <= 30;
         //if (! onGround) {
         //    return;
         //}
 
-        launcher(gamepad);
+        updateEnabled(gamepad);
+        launcher(gamepad, gamepad2);
         loader(gamepad);
         if (gamepad.dpad_up && !lastHomeButton) {
             startHoming();
@@ -150,12 +179,12 @@ public class RotatingLauncher {
     }
 
     private void loader(Gamepad gamepad) {
-        if (gamepad.b && !gamepad.start && !CtrlAltDelOpMode.killMotors && loader != null) {
+        if (loaderEnabled && !gamepad.start && !CtrlAltDelOpMode.killMotors && loader != null) {
             servoState = ServoState.IDLE;
             runningSequence = false;
             lastLaunch = false;
             loader.setDirection(CRServo.Direction.FORWARD);
-            loader.setPower(1.0);
+            loader.setPower(LOADER_FAST_POWER);
             return;
         }
 
@@ -446,17 +475,13 @@ public class RotatingLauncher {
         }
     }
 
-    private void launcher(Gamepad gamepad) {
+    private void launcher(Gamepad gamepad, Gamepad gamepad2) {
         boolean spinLauncher = gamepad.right_trigger > CtrlAltDelOpMode.TRIGGER_DEADZONE;
 
-        if (spinLauncher && upToSpeed()) {
-            readyToLaunch = true;
-        } else {
-            readyToLaunch = false;
-        }
-
         //if (leftViperSlideMotor.getCurrentPosition() > 30 || rightViperSlideMotor.getCurrentPosition() > 30 || killMotors) {
-        if (CtrlAltDelOpMode.killMotors) {
+        if (CtrlAltDelOpMode.killMotors || !flywheelEnabled) {
+            readyToLaunch = false;
+            launcherVelocity = 0;
             launcher.setVelocity(0);
             return;
         }
@@ -464,20 +489,22 @@ public class RotatingLauncher {
         launcherVelocity = LAUNCHER_IDLE_TICKS;
 
         // Manual launch velocity adjustment
-        if (gamepad.left_bumper && !lastLeftBumper) {
+        boolean leftBumper = gamepad2 != null && gamepad2.left_bumper;
+        boolean rightBumper = gamepad2 != null && gamepad2.right_bumper;
+        if (leftBumper && !lastLeftBumper) {
             lvManualAdjustment -= LAUNCHER_TICKS_INCREMENTS;
             if (telemetry != null) {
                 telemetry.speak("Slower, " + lvManualAdjustment + " ticks");
             }
         }
-        if (gamepad.right_bumper && !lastRightBumper) {
+        if (rightBumper && !lastRightBumper) {
             lvManualAdjustment += LAUNCHER_TICKS_INCREMENTS;
             if (telemetry != null) {
                 telemetry.speak("Faster, " + lvManualAdjustment + " ticks");
             }
         }
-        lastLeftBumper = gamepad.left_bumper;
-        lastRightBumper = gamepad.right_bumper;
+        lastLeftBumper = leftBumper;
+        lastRightBumper = rightBumper;
 
         lvGoalDistanceAdjustment = getGoalDistanceAdjustment();
 
@@ -489,10 +516,23 @@ public class RotatingLauncher {
         }
 
         launcher.setVelocity(launcherVelocity);
+        readyToLaunch = spinLauncher && upToSpeed();
     }
 
     public void stopLauncher() {
         launcher.setVelocity(0);
+        launcherVelocity = 0;
+    }
+
+    public void setAutonomousFlywheelVelocity(double ticksPerSecond) {
+        launcherVelocity = CtrlAltDelOpMode.killMotors ? 0 : Math.max(0, ticksPerSecond);
+        launcher.setVelocity(launcherVelocity);
+    }
+
+    public void setLoaderRunning(boolean running) {
+        if (loader == null) return;
+        loader.setDirection(CRServo.Direction.FORWARD);
+        loader.setPower(running && !CtrlAltDelOpMode.killMotors ? LOADER_FAST_POWER : 0);
     }
 
     public void autoLauncher(int ticksPerSecond) {
@@ -523,46 +563,48 @@ public class RotatingLauncher {
         return launcher.getVelocity() >= (launcherVelocity * LAUNCHER_THRESHOLD);
     }
 
+    public void addCompetitionTelemetry(Telemetry telemetry) {
+        if (flywheelEnabled && !CtrlAltDelOpMode.killMotors) {
+            String speedState = readyToLaunch ? "✅ Ready" :
+                    launcherVelocity < 0 ? "↩ Reverse" :
+                            launcherVelocity > LAUNCHER_IDLE_TICKS ? "⌛ Spinning up" : "Idle";
+            telemetry.addData("Flywheel", "%.0f / %.0f ticks/s  %s",
+                    launcher.getVelocity(), launcherVelocity, speedState);
+        }
+
+        if (isHoming()) {
+            telemetry.addLine("⌛ Turret: Homing");
+        } else if (trackingEnabled && isTrackedTagVisible()) {
+            telemetry.addData("🎯 Turret", "Tag %d  tx %+.1f°", trackedTagId, trackedTx);
+        } else if (trackingEnabled) {
+            telemetry.addLine("🔍 Turret: " + (trackingState == TrackingState.LOST ? "Tag lost" : "Searching"));
+        } else if (homeState == HomeState.FAILED) {
+            telemetry.addLine("⚠ Turret: Home failed");
+        } else if (homeState == HomeState.UNAVAILABLE) {
+            telemetry.addLine("⚠ Turret: Home unavailable");
+        } else {
+            telemetry.addLine("🎯 Turret: Tracking off");
+        }
+    }
+
     public void addTelemetry(Telemetry telemetry) {
-        telemetry.addData(
-                label + " Flywheel",
-                "%.0f / %.0f",
-                launcher.getVelocity(),
-                launcherVelocity
-        );
-
-        telemetry.addData(label + " Ready", readyToLaunch);
-        telemetry.addData(label + " Shot Target", "%.0f",
-                LAUNCHER_BASE_TICKS + lvManualAdjustment + lvGoalDistanceAdjustment);
-        telemetry.addData(label + " Tag Adjustment", lvGoalDistanceAdjustment);
-        telemetry.addData(label + " Manual Adjustment", lvManualAdjustment);
-
-        if (loader != null) {
-            telemetry.addData(
-                    label + " Loader",
-                    "%.0f%%",
-                    loader.getPower() * 100
-            );
-        }
-
+        telemetry.addData("Manual speed adjustment", "%+d ticks/s", lvManualAdjustment);
+        telemetry.addData("Tag speed adjustment", lvGoalDistanceAdjustment == -1 ? "Unavailable" :
+                lvGoalDistanceAdjustment + " ticks/s");
+        telemetry.addData("Loader power", loader == null ? "Not configured" :
+                String.format("%.0f%%", loader.getPower() * 100));
         if (turretServo != null) {
-            telemetry.addData(
-                    label + " Turret",
-                    "%.0f%%",
-                    turretServo.getPower() * 100
-            );
-            telemetry.addData(label + " Center Switch",
-                    centerSwitch == null ? "Not configured" :
-                            centerSwitch.isPressed() ? "Detected" : "Clear");
-            telemetry.addData(label + " Home", homeState);
+            telemetry.addData("Turret power", "%.0f%%", turretServo.getPower() * 100);
+            telemetry.addData("Center switch", centerSwitch == null ? "Not configured" :
+                    centerSwitch.isPressed() ? "Detected" : "Clear");
+            telemetry.addData("Home", homeState);
         }
-        telemetry.addData(label + " Tracking Enabled", trackingEnabled);
-        telemetry.addData(label + " Tag Tracking", trackingState);
-        if (trackedTagId != -1) {
-            telemetry.addData(label + " Tracked Tag", trackedTagId);
-            telemetry.addData(label + " Tracking tx", "%.1f deg", trackedTx);
+        telemetry.addData("Tracking detail", trackingState);
+        if (trackedTagId != -1 && !isTrackedTagVisible()) {
+            telemetry.addData("Tracked tag ID", trackedTagId);
+            telemetry.addData("Last tracking tx", "%.1f deg", trackedTx);
         }
-        telemetry.addData(label + " LED", led == null ? "Not configured" :
+        telemetry.addData("LED", led == null ? "Not configured" :
                 !trackingEnabled ? "Red" : isTrackedTagVisible() ? "Green" : "Blinking green");
     }
 }

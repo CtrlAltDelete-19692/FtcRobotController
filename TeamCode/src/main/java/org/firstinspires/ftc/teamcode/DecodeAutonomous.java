@@ -7,11 +7,12 @@ import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
 
-@Autonomous(name = "DecodeAutonomous")
+//@Autonomous(name = "DecodeAutonomous")
 public class DecodeAutonomous extends CtrlAltDelOpMode {
     private int teamTagId = 20;
 
     private Drive drive;
+    private AutonomousDriveCommands autoDrive;
     private Launcher launcher;
     private Intake intake;
 
@@ -105,6 +106,7 @@ public class DecodeAutonomous extends CtrlAltDelOpMode {
         }
 
         drive = new Drive(hardwareMap, "", true);
+        autoDrive = new AutonomousDriveCommands(this, drive);
         AprilTag aprilTag = new AprilTag(hardwareMap);
         aprilTag.pipelineSwitch(pipeline);
         launcher = new Launcher(hardwareMap, aprilTag, telemetry);
@@ -436,13 +438,7 @@ public class DecodeAutonomous extends CtrlAltDelOpMode {
     }
 
     private void driveForTime(double strafe, double forward, double rotate, double durationMs, int direction) {
-        long start = System.currentTimeMillis();
-        while (opModeIsActive() && System.currentTimeMillis() - start < durationMs) {
-            drive.driveCommand(strafe * direction, forward, rotate * direction);
-            idle();
-        }
-
-        driveStop();
+        autoDrive.driveForTime(strafe, forward, rotate, durationMs, direction);
     }
 
     private void driveForward(double durationMs, int direction) {
@@ -499,7 +495,7 @@ public class DecodeAutonomous extends CtrlAltDelOpMode {
     }
 
     private void driveStop() {
-        drive.driveCommand(0, 0, 0);
+        autoDrive.stop();
     }
 
     private void spinUpLauncher(int defaultFeet, long spinupMs) {

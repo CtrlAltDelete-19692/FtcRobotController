@@ -6,7 +6,7 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 
-@TeleOp(name = "DecodeTeleOp")
+//@TeleOp(name = "DecodeTeleOp")
 
 public class DecodeTeleOp extends CtrlAltDelOpMode {
     private Drive drive;

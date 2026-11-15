@@ -6,7 +6,7 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.Servo;
 
 
-@TeleOp(name = "DC Motor and Servo")
+//@TeleOp(name = "DC Motor and Servo")
 
 public class DcMotorAndServo extends CtrlAltDelOpMode {
 
