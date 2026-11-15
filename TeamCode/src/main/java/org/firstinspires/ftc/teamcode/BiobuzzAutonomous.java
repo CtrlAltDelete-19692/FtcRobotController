@@ -25,7 +25,7 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
         killMotors = false;
         drive = new Drive(hardwareMap, "Biobuzz", false);
         autoDrive = new AutonomousDriveCommands(this, drive);
-        intake = new Intake(hardwareMap, DcMotor.Direction.REVERSE);
+        intake = new Intake(hardwareMap, DcMotor.Direction.FORWARD);
         launcher = new RotatingLauncher(hardwareMap, "Pollen", null, null);
         limelight = hardwareMap.tryGet(Limelight3A.class, "Limelight");
         if (limelight != null) limelight.start();
@@ -100,7 +100,9 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
     private boolean waitForDuration(long durationMs, String phase) {
         long start = System.currentTimeMillis();
         while (opModeIsActive() && System.currentTimeMillis() - start < durationMs) {
+            intake.updateHopperStall();
             telemetry.addData("Autonomous", phase);
+            if (intake.isHopperStalled()) telemetry.addLine("Hopper stalled; feed stopped");
             telemetry.addData("Flywheel", "%.0f / %.0f ticks/s",
                     launcher.launcher.getVelocity(), launcher.launcherVelocity);
             telemetry.update();

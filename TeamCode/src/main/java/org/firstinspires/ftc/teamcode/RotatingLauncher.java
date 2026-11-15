@@ -25,7 +25,7 @@ public class RotatingLauncher {
 
     private static final double LOADER_IDLE_POWER = 0; // Between 0 and 1
     private static final double LOADER_POWER = 0.4; // Between 0 and 1
-    private static final double LOADER_FAST_POWER = 0.4;
+    private static final double LOADER_CONTINUOUS_POWER = 0.4;
     private static final int LAUNCH_TIME_MS = 400;
     private static final double LAUNCHER_IDLE_TICKS = 900;  // maintains spin
     public static final double LAUNCHER_BASE_TICKS = 1280;  // full shooting speed from 2ft
@@ -86,9 +86,8 @@ public class RotatingLauncher {
     long actionStartTime = 0;
     private boolean lastLeftBumper = false;
     private boolean lastRightBumper = false;
-    private boolean lastLoaderButton;
     private boolean lastFlywheelButton;
-    private boolean loaderEnabled;
+    private boolean lastSpinTrigger;
     private boolean flywheelEnabled = true;
 
     enum ServoState {
@@ -142,14 +141,12 @@ public class RotatingLauncher {
     }
 
     public void updateEnabled(Gamepad gamepad) {
-        if (gamepad.left_bumper && !lastLoaderButton) loaderEnabled = !loaderEnabled;
         if (gamepad.right_bumper && !lastFlywheelButton) flywheelEnabled = !flywheelEnabled;
-        lastLoaderButton = gamepad.left_bumper;
         lastFlywheelButton = gamepad.right_bumper;
     }
 
-    public boolean isLoaderEnabled() {
-        return loaderEnabled;
+    public boolean isLoaderRunning() {
+        return loader != null && loader.getPower() > 0;
     }
 
     public boolean hasLoader() {
@@ -169,7 +166,7 @@ public class RotatingLauncher {
 
         updateEnabled(gamepad);
         launcher(gamepad, gamepad2);
-        loader(gamepad);
+        loader(gamepad, gamepad2, result, isBlue);
         if (gamepad.dpad_up && !lastHomeButton) {
             startHoming();
         }
@@ -178,23 +175,25 @@ public class RotatingLauncher {
         updateLed();
     }
 
-    private void loader(Gamepad gamepad) {
-        if (loaderEnabled && !gamepad.start && !CtrlAltDelOpMode.killMotors && loader != null) {
-            servoState = ServoState.IDLE;
-            runningSequence = false;
-            lastLaunch = false;
-            loader.setDirection(CRServo.Direction.FORWARD);
-            loader.setPower(LOADER_FAST_POWER);
-            return;
+    private void loader(Gamepad gamepad, Gamepad gamepad2, LLResult result, boolean isBlue) {
+        boolean manualFeed = gamepad.b || gamepad2 != null && gamepad2.b;
+        boolean automaticFeed = gamepad.a || gamepad2 != null && gamepad2.a;
+        boolean feed = manualFeed || automaticFeed && readyToLaunch
+                && launcher.getVelocity() >= LAUNCHER_MINIMUM_TICKS
+                && hasAllianceTag(result, isBlue);
+        servoState = ServoState.IDLE;
+        runningSequence = false;
+        lastLaunch = false;
+        setLoaderRunning(feed && !gamepad.start && (gamepad2 == null || !gamepad2.start));
+    }
+
+    private boolean hasAllianceTag(LLResult result, boolean isBlue) {
+        if (result == null || !result.isValid() || result.getFiducialResults() == null) return false;
+        for (LLResultTypes.FiducialResult tag : result.getFiducialResults()) {
+            int id = tag.getFiducialId();
+            if (isBlue ? id >= 38 && id <= 45 : id >= 30 && id <= 37) return true;
         }
-
-        boolean minLaunchSpeed = launcher.getVelocity() >= LAUNCHER_MINIMUM_TICKS;
-        boolean executeLaunch =
-                gamepad.a && readyToLaunch
-                        && !gamepad.start
-                        && minLaunchSpeed;
-
-        runLoader(executeLaunch);
+        return false;
     }
 
     private void turret(Gamepad gamepad, LLResult result, boolean isBlue) {
@@ -476,7 +475,10 @@ public class RotatingLauncher {
     }
 
     private void launcher(Gamepad gamepad, Gamepad gamepad2) {
-        boolean spinLauncher = gamepad.right_trigger > CtrlAltDelOpMode.TRIGGER_DEADZONE;
+        boolean spinLauncher = gamepad.right_trigger > CtrlAltDelOpMode.TRIGGER_DEADZONE
+                || gamepad2 != null && gamepad2.right_trigger > CtrlAltDelOpMode.TRIGGER_DEADZONE;
+        if (spinLauncher && !lastSpinTrigger) flywheelEnabled = true;
+        lastSpinTrigger = spinLauncher;
 
         //if (leftViperSlideMotor.getCurrentPosition() > 30 || rightViperSlideMotor.getCurrentPosition() > 30 || killMotors) {
         if (CtrlAltDelOpMode.killMotors || !flywheelEnabled) {
@@ -532,7 +534,7 @@ public class RotatingLauncher {
     public void setLoaderRunning(boolean running) {
         if (loader == null) return;
         loader.setDirection(CRServo.Direction.FORWARD);
-        loader.setPower(running && !CtrlAltDelOpMode.killMotors ? LOADER_FAST_POWER : 0);
+        loader.setPower(running && !CtrlAltDelOpMode.killMotors ? LOADER_CONTINUOUS_POWER : 0);
     }
 
     public void autoLauncher(int ticksPerSecond) {
