@@ -12,6 +12,7 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
     private static final long FORWARD_MS_PER_FOOT = 350; // Starting estimate from Decode; tune on Biobuzz.
     private static final long STRAFE_MS_PER_FOOT = 500;  // Starting estimate from Decode; tune on Biobuzz.
     private static final long FLOWER_PULLER_MOVE_MS = 800;
+    private static final long FLOWER_COLLECTION_PAUSE_MS = 3000;
 
     private Drive drive;
     private AutonomousDriveCommands autoDrive;
@@ -94,7 +95,7 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
             }
 
             if (shootFirst) {
-                if (!forward(3.5) || !turn(-90) || !forward(4)) return;
+                if (!forward(3.5) || !turn(-90) || !forward(3)) return;
             } else {
                 if (!forward(2) || !turn(90) || !forward(1) || !turn(90)) return;
             }
@@ -102,7 +103,9 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
             flowerPuller.setDown();
             if (!waitForDuration(FLOWER_PULLER_MOVE_MS, "Lowering FlowerPuller", false)) return;
             intake.spin(true);
-            if (!forward(shootFirst ? 2 : 2.5) || !backward(1)) return;
+            if (!forward(2)) return;
+            if (!waitForDuration(FLOWER_COLLECTION_PAUSE_MS, "Collecting pollen", false)) return;
+            if (!backward(1)) return;
             flowerPuller.setUp();
             intake.spin(false);
             if (!waitForDuration(FLOWER_PULLER_MOVE_MS, "Raising FlowerPuller", false)) return;
