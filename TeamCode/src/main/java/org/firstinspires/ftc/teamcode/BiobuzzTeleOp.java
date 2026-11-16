@@ -126,6 +126,7 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
 
         isBlue = blue;
         selectedPipeline = pipeline;
+        telemetry.speak(blue ? "Blue team" : "Red team");
         if (limelight != null) {
             limelight.pipelineSwitch(pipeline);
         }
