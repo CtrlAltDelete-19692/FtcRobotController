@@ -7,8 +7,7 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 @Autonomous(name = "BiobuzzAutonomous")
 public class BiobuzzAutonomous extends CtrlAltDelOpMode {
     private static final long FLYWHEEL_SPINUP_TIMEOUT_MS = 5000;
-    private static final long LOADER_LEAD_MS = 150;
-    private static final long FEED_MS_PER_BALL = 1000; // Tune on the robot; balls are not counted yet.
+    private static final long FEED_MS_PER_BALL = 1000;
     private static final long LOADER_CLEAR_MS = 400;
 
     private Drive drive;
@@ -72,15 +71,20 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
             }
 
             launcher.setLoaderRunning(true);
-            if (!waitForDuration(LOADER_LEAD_MS, "Starting Loader")) return;
-            intake.runHopper(true);
-            if (!waitForDuration(FEED_MS_PER_BALL * ballCount, "Feeding " + ballCount + " balls")) return;
+            intake.onLoaderRunning(true);
+            long feedDurationMs = Intake.HOPPER_LOADER_FEED_CYCLE_ENABLED
+                    ? Intake.HOPPER_LOADER_INITIAL_PAUSE_MS + Intake.HOPPER_LOADER_CYCLE_MS * ballCount
+                    : FEED_MS_PER_BALL * ballCount;
+            if (!waitForDuration(feedDurationMs,
+                    "Feeding " + ballCount + " balls", true)) return;
+            intake.onLoaderRunning(false);
             intake.runHopper(false);
-            if (!waitForDuration(LOADER_CLEAR_MS, "Clearing Loader")) return;
+            if (!waitForDuration(LOADER_CLEAR_MS, "Clearing Loader", false)) return;
 
             telemetry.addLine("Timed feed complete");
             telemetry.update();
         } finally {
+            intake.onLoaderRunning(false);
             intake.runHopper(false);
             launcher.setLoaderRunning(false);
             launcher.stopLauncher();
@@ -101,9 +105,10 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
         return opModeIsActive() && launcher.upToSpeed();
     }
 
-    private boolean waitForDuration(long durationMs, String phase) {
+    private boolean waitForDuration(long durationMs, String phase, boolean pulseHopper) {
         long start = System.currentTimeMillis();
         while (opModeIsActive() && System.currentTimeMillis() - start < durationMs) {
+            if (pulseHopper) intake.onLoaderRunning(true);
             intake.updateHopperStall();
             telemetry.addData("Autonomous", phase);
             if (intake.isHopperStalled()) telemetry.addLine("Hopper stalled; feed stopped");

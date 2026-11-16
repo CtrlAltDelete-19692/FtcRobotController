@@ -14,7 +14,7 @@ public class Intake {
     private final DcMotor hopper;
     private final DcMotorEx hopperEncoder;
 
-    public static final double INTAKE_POWER = 0.6;  // Default power for pickup intake, 0 to 1
+    public static final double INTAKE_POWER = 0.5;  // Default power for pickup intake, 0 to 1
     public static final double HOPPER_POWER = 0.6; // Default power for hopper, 0 to 1
     private static final double STALL_SPEED_TICKS_PER_SECOND = 5;
     public static final double HOPPER_SLOWDOWN_FRACTION = 0.35; // Stop below 35% of this run's peak speed.
@@ -22,6 +22,14 @@ public class Intake {
     private static final long STARTUP_GRACE_MS = 400;
     private static final long STALL_CONFIRM_MS = 150;
     private static final long REVERSE_BURST_MS = 250;
+    public static final long HOPPER_LOADER_INITIAL_PAUSE_MS = 600;
+    private static final long HOPPER_LOADER_ON_MS = 150;
+    private static final long HOPPER_LOADER_OFF_MS = 600;
+    public static final boolean HOPPER_LOADER_FEED_CYCLE_ENABLED = true; // Pause, pulse, and reverse while loading.
+    private static final long HOPPER_LOADER_REVERSE_MS = 75;
+    private static final long HOPPER_LOADER_REVERSE_DELAY_MS = 20;
+    private static final double HOPPER_LOADER_REVERSE_POWER = 0.3;
+    public static final long HOPPER_LOADER_CYCLE_MS = HOPPER_LOADER_ON_MS + HOPPER_LOADER_OFF_MS;
     private boolean jamRecoveryEnabled;
     private boolean reversing;
     private long forwardStartTime;
@@ -34,6 +42,7 @@ public class Intake {
     private boolean hopperStalled;
     private boolean hopperLoaderOverride;
     private boolean lastLoaderRunning;
+    private long loaderFeedStartTime;
     private boolean intakeEnabled = true;
     private boolean lastY = false;
 
@@ -109,15 +118,32 @@ public class Intake {
 
     public void runHopper(boolean running) {
         hopperRequested = running && !CtrlAltDelOpMode.killMotors;
+        boolean reverseHopper = false;
+        if (HOPPER_LOADER_FEED_CYCLE_ENABLED && hopperRequested && loaderFeedStartTime != 0) {
+            long elapsed = System.currentTimeMillis() - loaderFeedStartTime;
+            if (elapsed < HOPPER_LOADER_INITIAL_PAUSE_MS) {
+                reverseHopper = elapsed >= HOPPER_LOADER_REVERSE_DELAY_MS
+                        && elapsed < HOPPER_LOADER_REVERSE_DELAY_MS + HOPPER_LOADER_REVERSE_MS;
+                hopperRequested = false;
+            } else {
+                long phase = (elapsed - HOPPER_LOADER_INITIAL_PAUSE_MS) % HOPPER_LOADER_CYCLE_MS;
+                hopperRequested = phase < HOPPER_LOADER_ON_MS;
+                reverseHopper = phase >= HOPPER_LOADER_ON_MS + HOPPER_LOADER_REVERSE_DELAY_MS
+                        && phase < HOPPER_LOADER_ON_MS + HOPPER_LOADER_REVERSE_DELAY_MS
+                        + HOPPER_LOADER_REVERSE_MS;
+            }
+        }
         if (hopper == null) return;
         boolean shouldRun = hopperRequested && !hopperStalled;
-        if (shouldRun && hopper.getPower() == 0) {
+        if (shouldRun && hopper.getPower() <= 0) {
             hopperForwardStartTime = System.currentTimeMillis();
             hopperStallStartTime = 0;
             hopperPeakSpeed = 0;
         }
         if (!shouldRun) hopperForwardStartTime = 0;
-        hopper.setPower(shouldRun ? HOPPER_POWER : 0);
+        hopper.setPower(shouldRun ? HOPPER_POWER
+                : reverseHopper && !hopperStalled
+                        ? -HOPPER_LOADER_REVERSE_POWER : 0);
     }
 
     public void spin(boolean spinLauncher) {
@@ -126,11 +152,25 @@ public class Intake {
     }
 
     public void onLoaderRunning(boolean running) {
-        if (running && !lastLoaderRunning && hopper != null && hopper.getPower() == 0
-                && !CtrlAltDelOpMode.killMotors) {
+        if (CtrlAltDelOpMode.killMotors) {
+            loaderFeedStartTime = 0;
+            hopperLoaderOverride = false;
+            lastLoaderRunning = false;
+            runHopper(false);
+            return;
+        }
+        if (running && hopper != null) {
+            if (!lastLoaderRunning) {
+                loaderFeedStartTime = HOPPER_LOADER_FEED_CYCLE_ENABLED
+                        ? System.currentTimeMillis() : 0;
+                hopperStalled = false;
+            }
             hopperLoaderOverride = true;
-            hopperStalled = false;
             runHopper(true);
+        } else if (lastLoaderRunning) {
+            loaderFeedStartTime = 0;
+            hopperLoaderOverride = false;
+            runHopper(intakeEnabled);
         }
         lastLoaderRunning = running;
     }

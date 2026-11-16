@@ -25,11 +25,11 @@ public class RotatingLauncher {
 
     private static final double LOADER_IDLE_POWER = 0; // Between 0 and 1
     private static final double LOADER_POWER = 0.4; // Between 0 and 1
-    private static final double LOADER_CONTINUOUS_POWER = 0.4;
+    private static final double LOADER_CONTINUOUS_POWER = 0.6;
     private static final int LAUNCH_TIME_MS = 400;
-    private static final double LAUNCHER_IDLE_TICKS = 900;  // maintains spin
+    private static final double LAUNCHER_IDLE_TICKS = 600;  // maintains spin
     public static final double LAUNCHER_BASE_TICKS = 1280;  // full shooting speed from 2ft
-    public static final double LAUNCHER_MINIMUM_TICKS = 900;  // full shooting speed from 2ft
+    public static final double LAUNCHER_MINIMUM_TICKS = 600;  // full shooting speed from 2ft
     public static final double TICKS_PER_FOOT = 60;  // ticks to add for each extra foot of distance, based on testing
     public static final int LAUNCHER_TICKS_INCREMENTS = 25;  // When manually adjusting launcher, increment / decrement by this amount
     public static final double LAUNCHER_THRESHOLD = 0.94;  // What percentage of launcher set velocity is required to shoot
@@ -118,7 +118,7 @@ public class RotatingLauncher {
         launcher.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         launcher.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
         launcher.setVelocity(0);
-        PIDFCoefficients newCoeffs = new PIDFCoefficients(14  , 0, 0.8, 13.2);
+        PIDFCoefficients newCoeffs = new PIDFCoefficients(14  , 0, 0.8, 18);
         launcher.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, newCoeffs);
 
         turretServo = hardwareMap.tryGet(CRServo.class, label + "RotatingServo");
