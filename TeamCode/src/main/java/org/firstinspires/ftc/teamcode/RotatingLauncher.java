@@ -340,10 +340,14 @@ public class RotatingLauncher {
         return trackingState == TrackingState.TRACKING || trackingState == TrackingState.ALIGNED;
     }
 
+    private boolean isLedReady() {
+        return isTrackedTagVisible() && launcherVelocity > LAUNCHER_IDLE_TICKS && upToSpeed();
+    }
+
     private void updateLed() {
         if (led != null) {
             led.setPosition(!trackingEnabled ? LED_RED_POSITION :
-                    isTrackedTagVisible() || System.currentTimeMillis() % LED_BLINK_PERIOD_MS < LED_BLINK_PERIOD_MS / 2
+                    isLedReady() || System.currentTimeMillis() % LED_BLINK_PERIOD_MS < LED_BLINK_PERIOD_MS / 2
                             ? LED_GREEN_POSITION : LED_OFF_POSITION);
         }
     }
@@ -704,6 +708,6 @@ public class RotatingLauncher {
             telemetry.addData("Last tracking tx", "%.1f deg", trackedTx);
         }
         telemetry.addData("LED", led == null ? "Not configured" :
-                !trackingEnabled ? "Red" : isTrackedTagVisible() ? "Green" : "Blinking green");
+                !trackingEnabled ? "Red" : isLedReady() ? "Green" : "Blinking green");
     }
 }
