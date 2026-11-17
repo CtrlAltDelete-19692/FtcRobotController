@@ -23,7 +23,7 @@ public class Intake {
     private static final long STALL_CONFIRM_MS = 150;
     private static final long REVERSE_BURST_MS = 250;
     public static final long HOPPER_LOADER_INITIAL_PAUSE_MS = 600;
-    private static final long HOPPER_LOADER_ON_MS = 150;
+    private static final long HOPPER_LOADER_ON_MS = 200;
     private static final long HOPPER_LOADER_OFF_MS = 600;
     public static final boolean HOPPER_LOADER_FEED_CYCLE_ENABLED = true; // Pause, pulse, and reverse while loading.
     private static final long HOPPER_LOADER_REVERSE_MS = 75;
@@ -43,6 +43,7 @@ public class Intake {
     private boolean hopperLoaderOverride;
     private boolean lastLoaderRunning;
     private long loaderFeedStartTime;
+    private long loaderFeedPauseTime;
     private boolean intakeEnabled = true;
     private boolean lastY = false;
 
@@ -152,6 +153,7 @@ public class Intake {
     }
 
     public void onLoaderRunning(boolean running) {
+        if (!running) loaderFeedPauseTime = 0;
         if (CtrlAltDelOpMode.killMotors) {
             loaderFeedStartTime = 0;
             hopperLoaderOverride = false;
@@ -173,6 +175,29 @@ public class Intake {
             runHopper(intakeEnabled);
         }
         lastLoaderRunning = running;
+    }
+
+    // A false value pauses an autonomous feed without ending/resetting its hopper cycle.
+    // Finish the feed with onLoaderRunning(false) followed by spin(false).
+    public void setAutonomousFeedRunning(boolean running) {
+        long now = System.currentTimeMillis();
+        if (CtrlAltDelOpMode.killMotors) {
+            onLoaderRunning(false);
+            spin(false);
+            return;
+        }
+        if (running) {
+            if (loaderFeedPauseTime != 0 && loaderFeedStartTime != 0) {
+                loaderFeedStartTime += now - loaderFeedPauseTime;
+            }
+            loaderFeedPauseTime = 0;
+            onLoaderRunning(true);
+            spin(true);
+        } else {
+            if (lastLoaderRunning && loaderFeedPauseTime == 0) loaderFeedPauseTime = now;
+            pickupMotor.setPower(0);
+            runHopper(false);
+        }
     }
 
     public void updateHopperStall() {

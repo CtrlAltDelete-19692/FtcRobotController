@@ -15,9 +15,14 @@ public class AutonomousDriveCommands {
     // Mirroring changes strafe and turn; forward/backward are the same for both alliances.
     public void driveForTime(double strafe, double forward, double rotate,
                              double durationMs, int allianceDirection) {
+        driveForTime(strafe, forward, rotate, durationMs, allianceDirection, 1.0);
+    }
+
+    public void driveForTime(double strafe, double forward, double rotate,
+                             double durationMs, int allianceDirection, double speedScale) {
         long start = System.currentTimeMillis();
         while (opMode.opModeIsActive() && System.currentTimeMillis() - start < durationMs) {
-            drive.driveCommand(strafe * allianceDirection, forward, rotate * allianceDirection);
+            drive.driveCommand(strafe * allianceDirection, forward, rotate * allianceDirection, speedScale);
             opMode.idle();
         }
         stop();
@@ -25,6 +30,10 @@ public class AutonomousDriveCommands {
 
     public void forward(double durationMs, int allianceDirection) {
         driveForTime(0, 1, 0, durationMs, allianceDirection);
+    }
+
+    public void forward(double durationMs, int allianceDirection, double speedScale) {
+        driveForTime(0, 1, 0, durationMs, allianceDirection, speedScale);
     }
 
     public void backward(double durationMs, int allianceDirection) {

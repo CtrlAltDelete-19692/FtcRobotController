@@ -48,14 +48,17 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
             if (gamepad1.b) changeTeam(false);
             intake.updateEnabled(gamepad1, gamepad2);
             pollenLauncher.updateEnabled(gamepad1);
+            updateDebugTelemetry();
 
             dashboard.addStatus(isBlue, drive.getDriveMode(), killMotors);
-            telemetry.addLine("INIT: X Blue / B Red");
-            telemetry.addData("Y Intake", intake.isEnabled() ? "ON" : "OFF");
-            telemetry.addData("RB Flywheel", pollenLauncher.isFlywheelEnabled() ? "ON" : "OFF");
             telemetry.addLine("Flywheel speed: gamepad 2 LB / RB");
-            telemetry.addLine("Loader: hold A (ready + tag) / B (manual)");
-            telemetry.addData("FlowerPuller", flowerPuller.isConfigured() ? "✅ Configured" : "⚠ Missing");
+            telemetry.addData("Turret sweep", pollenLauncher.isSweepEnabled() ? "ON" : "OFF");
+            if (debugTelemetry) {
+                telemetry.addData("Y Intake", intake.isEnabled() ? "ON" : "OFF");
+                telemetry.addData("RB Flywheel", pollenLauncher.isFlywheelEnabled() ? "ON" : "OFF");
+                telemetry.addLine("Loader: hold A (ready + tag) / B (manual)");
+                telemetry.addData("FlowerPuller", flowerPuller.isConfigured() ? "✅ Configured" : "⚠ Missing");
+            }
             dashboard.update();
         }
 
@@ -72,8 +75,7 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
         while (opModeIsActive()) {
             if (gamepad1.x && !lastKillButton) toggleMotors();
             lastKillButton = gamepad1.x;
-            if (gamepad2.x && !lastDebugButton) debugTelemetry = !debugTelemetry;
-            lastDebugButton = gamepad2.x;
+            updateDebugTelemetry();
 
             // Run update() for all subsystems
             LLResult result = limelight == null ? null : limelight.getLatestResult();
@@ -90,7 +92,6 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
             addCompetitionTelemetry();
             if (debugTelemetry) {
                 telemetry.addLine();
-                telemetry.addLine("🔎 DEBUG - gamepad 2 X to hide");
                 telemetry.addLine("SHOOTER / TURRET");
                 pollenLauncher.addTelemetry(telemetry);
                 telemetry.addLine("LIMELIGHT");
@@ -118,6 +119,11 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
         telemetry.addLine(intakeStatus + "      " + flywheelStatus + "      " + loaderStatus);
         if (!hopperStatus.isEmpty()) telemetry.addLine(hopperStatus);
         pollenLauncher.addCompetitionTelemetry(telemetry);
+    }
+
+    private void updateDebugTelemetry() {
+        if (gamepad2.x && !lastDebugButton) debugTelemetry = !debugTelemetry;
+        lastDebugButton = gamepad2.x;
     }
 
     private void changeTeam(boolean blue) {

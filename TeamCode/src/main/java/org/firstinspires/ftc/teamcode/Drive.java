@@ -43,8 +43,11 @@ public class Drive {
     private boolean selectPressedLast = false;
     private boolean rbPressedLast = false;
     private boolean resetYawOnRightBumper = true;
+    private final boolean chassisAutoAimEnabled;
 
     public Drive(HardwareMap hardwareMap, String driveSystem, boolean includeLimelight) {
+        // Biobuzz aims its turret independently; RT must leave chassis rotation under driver control.
+        chassisAutoAimEnabled = !driveSystem.equals("Biobuzz");
         if (includeLimelight) {
             limelight = hardwareMap.get(Limelight3A.class, "Limelight");
         }
@@ -161,7 +164,8 @@ public class Drive {
         strafe = strafe * STRAFE_CORRECTION; // Counteract imperfect strafing
 
         boolean oneController = gamepad.right_trigger > CtrlAltDelOpMode.TRIGGER_DEADZONE && DecodeTeleOp.oneController;
-        if (gamepad2.right_trigger > CtrlAltDelOpMode.TRIGGER_DEADZONE || oneController) {
+        if (chassisAutoAimEnabled
+                && (gamepad2.right_trigger > CtrlAltDelOpMode.TRIGGER_DEADZONE || oneController)) {
             rotate = getAutoRotate(rotate);
         }
 
@@ -225,7 +229,11 @@ public class Drive {
     }
 
     public void driveCommand(double strafe, double forward, double rotate) {
-        drive(strafe, forward, rotate, AUTO_SPEED);
+        driveCommand(strafe, forward, rotate, 1.0);
+    }
+
+    public void driveCommand(double strafe, double forward, double rotate, double speedScale) {
+        drive(strafe, forward, rotate, AUTO_SPEED * Range.clip(speedScale, 0.0, 1.0));
     }
 
     public DriveMode getDriveMode() {
