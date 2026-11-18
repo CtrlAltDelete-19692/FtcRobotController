@@ -13,13 +13,15 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
     private static final double FEED_RESUME_SPEED_FRACTION = 0.94;
     private static final long FEED_MS_PER_BALL = 1000;
     private static final long LOADER_CLEAR_MS = 400;
-    private static final long FORWARD_MS_PER_FOOT = 350; // Starting estimate from Decode; tune on Biobuzz.
+    private static final long FORWARD_MS_PER_FOOT = 440; // Starting estimate from Decode; tune on Biobuzz.
     private static final long STRAFE_MS_PER_FOOT = 500;  // Starting estimate from Decode; tune on Biobuzz.
     private static final long FLOWER_PULLER_MOVE_MS = 800;
     private static final long FLOWER_COLLECTION_PAUSE_MS = 3000;
     private static final double COLLECTION_FORWARD_FEET = 1.4;
     private static final double COLLECTION_FORWARD_SPEED_SCALE = 0.5; // Fraction of normal autonomous power.
     private static final double COLLECTION_FORWARD_TIME_TRIM = 1.0; // Increase if short; decrease if overshooting.
+    private static final double COLLECTION_SHAKE_INCHES = 4.0; // Travel in each direction; returns to collection position.
+    private static final int COLLECTION_SHAKE_CYCLES = 3; // Set to 0 to disable.
 
     private Drive drive;
     private AutonomousDriveCommands autoDrive;
@@ -34,6 +36,7 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
     private boolean lastCountLeft;
     private boolean lastCountRight;
     private boolean shootingActive;
+    private boolean collectionActive;
     private double fixedFeedVelocity = Double.NaN;
     private long feedTargetLostSince;
     private long feedSpeedLowSince;
@@ -45,6 +48,7 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
         drive = new Drive(hardwareMap, "Biobuzz", false);
         autoDrive = new AutonomousDriveCommands(this, drive);
         intake = new Intake(hardwareMap, DcMotor.Direction.FORWARD);
+        intake.disableJamDetection();
         flowerPuller = new FlowerPuller(hardwareMap);
         launcher = new RotatingLauncher(hardwareMap, "Pollen", null, null);
         limelight = hardwareMap.tryGet(Limelight3A.class, "Limelight");
@@ -116,36 +120,41 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
             }
 
             if (shootFirst) {
-                if (!strafeRight(3) || !forward(0.6)) return;
+                if (!strafeRight(2.85) || !forward(0.35)) return;
             } else {
-                if (!strafeRight(1.3) || !turn(-90) || !strafeRight(1.2)) return;
+                if (!strafeRight(1.5) || !turn(-90) || !strafeRight(1.2)) return;
             }
 
             flowerPuller.setDown();
             if (!waitForDuration(FLOWER_PULLER_MOVE_MS, "Lowering FlowerPuller", false)) return;
+            collectionActive = true;
             intake.spin(true);
             if (!collectionForward()) return;
             if (!waitForDuration(FLOWER_COLLECTION_PAUSE_MS, "Collecting pollen", false)) return;
             if (!backward(1)) return;
             flowerPuller.setUp();
-            intake.spin(false);
             if (!waitForDuration(FLOWER_PULLER_MOVE_MS, "Raising FlowerPuller", false)) return;
 
             if (shootFirst) {
-                if (!strafeLeft(2) || !backward(2.5)) return;
+                if (!strafeLeft(2.7) || !backward(1.2)) return;
             } else {
-                if (!strafeLeft(1)) return;
+                if (!turn(90) || !forward(1) || !strafeLeft(1.5)) return;
             }
 
+            collectionActive = false;
+            intake.spin(false);
             if (!shootBalls(ballCount)) return;
 
-            if (!turn(180)) return;
+            if (shootFirst) {
+                if (!turn(180)) return;
+            }
             
             drive.imu.resetYaw();
 
             telemetry.addLine("Autonomous route complete");
             telemetry.update();
         } finally {
+            collectionActive = false;
             intake.onLoaderRunning(false);
             intake.spin(false);
             launcher.setLoaderRunning(false);
@@ -203,16 +212,43 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
         // Half power starts with twice the duration; trim compensates for real motor/traction behavior.
         double durationMs = COLLECTION_FORWARD_FEET * FORWARD_MS_PER_FOOT
                 / COLLECTION_FORWARD_SPEED_SCALE * COLLECTION_FORWARD_TIME_TRIM;
-        autoDrive.forward(durationMs, 1, COLLECTION_FORWARD_SPEED_SCALE);
-        return opModeIsActive();
+        if (!collectionDrive(1, durationMs)) return false;
+        if (!backward(0.3)) return false;
+        double shakeDurationMs = COLLECTION_SHAKE_INCHES / 12.0 * FORWARD_MS_PER_FOOT
+                / COLLECTION_FORWARD_SPEED_SCALE * COLLECTION_FORWARD_TIME_TRIM;
+        for (int cycle = 0; cycle < COLLECTION_SHAKE_CYCLES; cycle++) {
+            if (!collectionDrive(1, shakeDurationMs) || !collectionDrive(-1, shakeDurationMs)) return false;
+        }
+        return backward(0.2);
+    }
+
+    private boolean collectionDrive(double direction, double durationMs) {
+        return collectionMove(0, direction, durationMs, COLLECTION_FORWARD_SPEED_SCALE);
+    }
+
+    private boolean collectionMove(double strafe, double forward, double durationMs, double speedScale) {
+        long start = System.currentTimeMillis();
+        try {
+            while (opModeIsActive() && !killMotors && System.currentTimeMillis() - start < durationMs) {
+                intake.spin(true);
+                intake.updateHopperStall();
+                drive.driveCommand(strafe, forward, 0, speedScale);
+                idle();
+            }
+        } finally {
+            autoDrive.stop();
+        }
+        return opModeIsActive() && !killMotors;
     }
 
     private boolean backward(double feet) {
+        if (collectionActive) return collectionMove(0, -1, feet * FORWARD_MS_PER_FOOT, 1.0);
         autoDrive.backward(feet * FORWARD_MS_PER_FOOT, 1);
         return opModeIsActive();
     }
 
     private boolean strafeLeft(double feet) {
+        if (collectionActive) return collectionMove(-1, 0, feet * STRAFE_MS_PER_FOOT, 1.0);
         autoDrive.strafeLeft(feet * STRAFE_MS_PER_FOOT, 1);
         return opModeIsActive();
     }
@@ -291,6 +327,7 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
                 elapsedMs += now - lastUpdate;
             }
             lastUpdate = now;
+            if (collectionActive && !killMotors) intake.spin(true);
             intake.updateHopperStall();
             telemetry.addData("Autonomous", phase);
             if (intake.isHopperStalled()) telemetry.addLine("Hopper stalled; feed stopped");

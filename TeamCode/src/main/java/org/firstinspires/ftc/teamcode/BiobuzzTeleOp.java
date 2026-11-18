@@ -30,7 +30,7 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
         drive = new Drive(hardwareMap, "Biobuzz", false);
         drive.setResetYawOnRightBumper(false);
         intake = new Intake(hardwareMap, DcMotor.Direction.FORWARD);
-        intake.enableJamRecovery();
+        intake.disableJamDetection();
         flowerPuller = new FlowerPuller(hardwareMap);
         pollenLauncher = new RotatingLauncher(hardwareMap, "Pollen", null, null);
         //nectarLauncher = new RotatingLauncher(hardwareMap, "Nectar", null, null);

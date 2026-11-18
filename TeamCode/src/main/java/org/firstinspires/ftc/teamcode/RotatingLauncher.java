@@ -47,6 +47,7 @@ public class RotatingLauncher {
     private Servo led;
     public static final double TURRET_SERVO_POWER = 1.0;
     private static final double LED_RED_POSITION = 0.28;
+    private static final double LED_ORANGE_POSITION = 0.333;
     private static final double LED_GREEN_POSITION = 0.50;
     private static final double LED_OFF_POSITION = 0.0;
     private static final long LED_BLINK_PERIOD_MS = 1000;
@@ -341,15 +342,22 @@ public class RotatingLauncher {
     }
 
     private boolean isLedReady() {
-        return isTrackedTagVisible() && launcherVelocity > LAUNCHER_IDLE_TICKS && upToSpeed();
+        return speedTarget != null && !CtrlAltDelOpMode.killMotors
+                && launcherVelocity > LAUNCHER_IDLE_TICKS && upToSpeed();
+    }
+
+    private double getLedPosition() {
+        if (isLedReady()) return LED_GREEN_POSITION;
+        boolean ramping = !CtrlAltDelOpMode.killMotors && launcherVelocity > LAUNCHER_IDLE_TICKS
+                && !upToSpeed();
+        double color = ramping ? LED_ORANGE_POSITION : LED_RED_POSITION;
+        boolean blinkOff = speedTarget != null
+                && System.currentTimeMillis() % LED_BLINK_PERIOD_MS >= LED_BLINK_PERIOD_MS / 2;
+        return blinkOff ? LED_OFF_POSITION : color;
     }
 
     private void updateLed() {
-        if (led != null) {
-            led.setPosition(!trackingEnabled ? LED_RED_POSITION :
-                    isLedReady() || System.currentTimeMillis() % LED_BLINK_PERIOD_MS < LED_BLINK_PERIOD_MS / 2
-                            ? LED_GREEN_POSITION : LED_OFF_POSITION);
-        }
+        if (led != null) led.setPosition(getLedPosition());
     }
 
     public void startHoming() {
@@ -574,6 +582,7 @@ public class RotatingLauncher {
         launcher.setVelocity(0);
         launcherVelocity = 0;
         readyToLaunch = false;
+        updateLed();
     }
 
     public void setAutonomousFlywheelVelocity(double ticksPerSecond) {
@@ -694,6 +703,16 @@ public class RotatingLauncher {
         if (speedTarget != null) {
             telemetry.addData("Speed target tag", speedTarget.getFiducialId());
         }
+        if (speedTarget == null) {
+            telemetry.addData("Distance input", "Selected tag not visible");
+        } else if (speedTarget.getTargetPoseCameraSpace() == null
+                || speedTarget.getTargetPoseCameraSpace().getPosition() == null) {
+            telemetry.addData("Distance input", "Camera-space pose unavailable");
+        } else {
+            double zMeters = speedTarget.getTargetPoseCameraSpace().getPosition().z;
+            telemetry.addData("Speed target distance", "%.3f m / %.2f ft", zMeters, zMeters * 3.28);
+            telemetry.addData("Distance input", Double.isFinite(zMeters) && zMeters > 0 ? "Valid" : "Invalid distance");
+        }
         telemetry.addData("Loader power", loader == null ? "Not configured" :
                 String.format("%.0f%%", loader.getPower() * 100));
         if (turretServo != null) {
@@ -707,7 +726,9 @@ public class RotatingLauncher {
             telemetry.addData("Tracked tag ID", trackedTagId);
             telemetry.addData("Last tracking tx", "%.1f deg", trackedTx);
         }
-        telemetry.addData("LED", led == null ? "Not configured" :
-                !trackingEnabled ? "Red" : isLedReady() ? "Green" : "Blinking green");
+        telemetry.addData("LED", led == null ? "Not configured" : isLedReady() ? "Green" :
+                (speedTarget != null ? "Flashing " : "")
+                        + (!CtrlAltDelOpMode.killMotors && launcherVelocity > LAUNCHER_IDLE_TICKS
+                        && !upToSpeed() ? "orange" : "red"));
     }
 }

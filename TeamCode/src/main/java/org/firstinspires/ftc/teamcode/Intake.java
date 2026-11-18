@@ -31,6 +31,7 @@ public class Intake {
     private static final double HOPPER_LOADER_REVERSE_POWER = 0.3;
     public static final long HOPPER_LOADER_CYCLE_MS = HOPPER_LOADER_ON_MS + HOPPER_LOADER_OFF_MS;
     private boolean jamRecoveryEnabled;
+    private boolean hopperStallDetectionEnabled = true;
     private boolean reversing;
     private long forwardStartTime;
     private long stallStartTime;
@@ -81,6 +82,16 @@ public class Intake {
 
     public void enableJamRecovery() {
         jamRecoveryEnabled = true;
+    }
+
+    public void disableJamDetection() {
+        jamRecoveryEnabled = false;
+        hopperStallDetectionEnabled = false;
+        reversing = false;
+        hopperStalled = false;
+        forwardStartTime = 0;
+        stallStartTime = 0;
+        hopperStallStartTime = 0;
     }
 
     public void updateEnabled(Gamepad gamepad, Gamepad gamepad2) {
@@ -201,6 +212,7 @@ public class Intake {
     }
 
     public void updateHopperStall() {
+        if (!hopperStallDetectionEnabled) return;
         if (hopperEncoder == null || !hopperRequested || hopperStalled) return;
         long now = System.currentTimeMillis();
         if (now - hopperForwardStartTime < STARTUP_GRACE_MS) return;
@@ -264,9 +276,10 @@ public class Intake {
         if (hopper != null) {
             telemetry.addData("Hopper speed", hopperEncoder == null ? "No encoder" :
                     String.format("%.0f ticks/s", hopperEncoder.getVelocity()));
-            if (hopperEncoder != null) telemetry.addData("Hopper slowdown limit", "%.0f ticks/s",
+            if (hopperEncoder != null && hopperStallDetectionEnabled) telemetry.addData("Hopper slowdown limit", "%.0f ticks/s",
                     Math.max(STALL_SPEED_TICKS_PER_SECOND, hopperPeakSpeed * HOPPER_SLOWDOWN_FRACTION));
-            telemetry.addData("Hopper", hopperStalled ? "⚠ Stalled; run Loader to restart" : "✅ Clear");
+            telemetry.addData("Hopper", !hopperStallDetectionEnabled ? "Jam detection disabled" :
+                    hopperStalled ? "⚠ Stalled; run Loader to restart" : "✅ Clear");
         }
         if (jamRecoveryEnabled) {
             telemetry.addData("Intake Speed", intakeEncoder == null ? "No encoder" :
