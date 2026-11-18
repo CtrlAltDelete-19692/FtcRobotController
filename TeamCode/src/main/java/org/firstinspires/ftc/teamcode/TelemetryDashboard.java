@@ -36,7 +36,7 @@ public class TelemetryDashboard {
         }
 
         telemetry.addLine(teamColor + "      " + modeLabel + "      "
-                + (killMotors ? "❌ Motors" : "✅ Motors"));
+                + (killMotors ? "❌ Motors (X)" : "✅ Motors (X)"));
         telemetry.addLine();
 
         if (driveMode != null) {

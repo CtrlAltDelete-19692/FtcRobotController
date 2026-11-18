@@ -6,10 +6,15 @@ import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 public class AutonomousDriveCommands {
     private final LinearOpMode opMode;
     private final Drive drive;
+    private Runnable periodicUpdate;
 
     public AutonomousDriveCommands(LinearOpMode opMode, Drive drive) {
         this.opMode = opMode;
         this.drive = drive;
+    }
+
+    public void setPeriodicUpdate(Runnable update) {
+        periodicUpdate = update;
     }
 
     // Mirroring changes strafe and turn; forward/backward are the same for both alliances.
@@ -22,6 +27,7 @@ public class AutonomousDriveCommands {
                              double durationMs, int allianceDirection, double speedScale) {
         long start = System.currentTimeMillis();
         while (opMode.opModeIsActive() && System.currentTimeMillis() - start < durationMs) {
+            if (periodicUpdate != null) periodicUpdate.run();
             drive.driveCommand(strafe * allianceDirection, forward, rotate * allianceDirection, speedScale);
             opMode.idle();
         }
@@ -64,6 +70,7 @@ public class AutonomousDriveCommands {
         long timeoutMs = Math.abs(degrees) > 135 ? 5000 : 3500;
 
         while (opMode.opModeIsActive() && System.currentTimeMillis() - startTime < timeoutMs) {
+            if (periodicUpdate != null) periodicUpdate.run();
             double rawYaw = drive.imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
             double heading = -rawYaw;
             double error = headingError(targetHeading, heading);

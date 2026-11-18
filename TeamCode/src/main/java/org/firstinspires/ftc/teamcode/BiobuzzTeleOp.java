@@ -20,6 +20,7 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
     private boolean isBlue = true;
     private int selectedPipeline = -1;
     private boolean lastKillButton;
+    private boolean lastYawResetButton;
     private boolean lastDebugButton;
     private boolean debugTelemetry;
 
@@ -30,9 +31,10 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
         drive = new Drive(hardwareMap, "Biobuzz", false);
         drive.setResetYawOnRightBumper(false);
         intake = new Intake(hardwareMap, DcMotor.Direction.FORWARD);
-        intake.disableJamDetection();
+        intake.enableJamRecovery();
         flowerPuller = new FlowerPuller(hardwareMap);
         pollenLauncher = new RotatingLauncher(hardwareMap, "Pollen", null, null);
+        pollenLauncher.setFeedIntake(intake);
         //nectarLauncher = new RotatingLauncher(hardwareMap, "Nectar", null, null);
         limelight = hardwareMap.tryGet(Limelight3A.class, "Limelight");
         if (limelight != null) {
@@ -47,16 +49,13 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
             if (gamepad1.x) changeTeam(true);
             if (gamepad1.b) changeTeam(false);
             intake.updateEnabled(gamepad1, gamepad2);
-            pollenLauncher.updateEnabled(gamepad1);
             updateDebugTelemetry();
 
             dashboard.addStatus(isBlue, drive.getDriveMode(), killMotors);
             telemetry.addLine("Flywheel speed: gamepad 2 LB / RB");
-            telemetry.addData("Turret sweep", pollenLauncher.isSweepEnabled() ? "ON" : "OFF");
             if (debugTelemetry) {
-                telemetry.addData("Y Intake", intake.isEnabled() ? "ON" : "OFF");
-                telemetry.addData("RB Flywheel", pollenLauncher.isFlywheelEnabled() ? "ON" : "OFF");
-                telemetry.addLine("Loader: hold A (ready + tag) / B (manual)");
+                telemetry.addData("Intake (Y)", intake.isEnabled() ? "ON" : "OFF");
+                telemetry.addLine("Loader (A or B): hold A (ready + tag) / B (manual)");
                 telemetry.addData("FlowerPuller", flowerPuller.isConfigured() ? "✅ Configured" : "⚠ Missing");
             }
             dashboard.update();
@@ -67,6 +66,7 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
         flowerPuller.setUp();
         telemetry.clearAll();
         lastKillButton = gamepad1.x;
+        lastYawResetButton = gamepad1.left_bumper;
         lastDebugButton = gamepad2.x;
 
         drive.imu.resetYaw();
@@ -75,6 +75,8 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
         while (opModeIsActive()) {
             if (gamepad1.x && !lastKillButton) toggleMotors();
             lastKillButton = gamepad1.x;
+            if (gamepad1.left_bumper && !lastYawResetButton) drive.imu.resetYaw();
+            lastYawResetButton = gamepad1.left_bumper;
             updateDebugTelemetry();
 
             // Run update() for all subsystems
@@ -83,7 +85,6 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
             intake.update(gamepad1, gamepad2);
             flowerPuller.update(gamepad2);
             pollenLauncher.update(gamepad1, gamepad2, result, isBlue);
-            intake.onLoaderRunning(pollenLauncher.isLoaderRunning());
             intake.updateHopperStall();
             //nectarLauncher.update(gamepad1);
 
@@ -107,12 +108,12 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
     }
 
     private void addCompetitionTelemetry() {
-        String intakeStatus = killMotors || !intake.isEnabled() ? "❌ Intake" :
-                intake.isReversing() ? "↩ Intake" : "✅ Intake";
-        String flywheelStatus = !killMotors && pollenLauncher.isFlywheelEnabled() ?
+        String intakeStatus = killMotors || !intake.isEnabled() ? "❌ Intake (Y)" :
+                intake.isReversing() ? "↩ Intake (Y)" : "✅ Intake (Y)";
+        String flywheelStatus = !killMotors ?
                 "✅ Flywheel" : "❌ Flywheel";
-        String loaderStatus = !pollenLauncher.hasLoader() ? "⚠ Loader" :
-                pollenLauncher.isLoaderRunning() ? "✅ Loader" : "❌ Loader";
+        String loaderStatus = !pollenLauncher.hasLoader() ? "⚠ Loader (A or B)" :
+                pollenLauncher.isLoaderRunning() ? "✅ Loader (A or B)" : "❌ Loader (A or B)";
         String hopperStatus = !intake.hasHopper() ? "⚠ Hopper" :
                 intake.isHopperStalled() ? "⚠ Hopper stalled" :
                         intake.isHopperLoaderOverride() && !intake.isEnabled() ? "✅ Hopper (Loader)" : "";
@@ -159,6 +160,10 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
         for (LLResultTypes.FiducialResult tag : tags) {
             telemetry.addData("Tag " + tag.getFiducialId() + " tx", "%.1f deg",
                     tag.getTargetXDegrees());
+            telemetry.addData("Tag " + tag.getFiducialId() + " height", "%.1f in  %s (must be > %.0f)",
+                    pollenLauncher.getTagHeightInches(tag),
+                    pollenLauncher.isTagAboveMinimumHeight(tag) ? "Accepted" : "FILTERED OUT",
+                    RotatingLauncher.MIN_TARGET_HEIGHT_INCHES);
         }
     }
 }

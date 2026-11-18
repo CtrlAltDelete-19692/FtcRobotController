@@ -12,7 +12,6 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
     private static final double FEED_MIN_SPEED_FRACTION = 0.80;
     private static final double FEED_RESUME_SPEED_FRACTION = 0.94;
     private static final long FEED_MS_PER_BALL = 1000;
-    private static final long LOADER_CLEAR_MS = 400;
     private static final long FORWARD_MS_PER_FOOT = 440; // Starting estimate from Decode; tune on Biobuzz.
     private static final long STRAFE_MS_PER_FOOT = 500;  // Starting estimate from Decode; tune on Biobuzz.
     private static final long FLOWER_PULLER_MOVE_MS = 800;
@@ -22,6 +21,10 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
     private static final double COLLECTION_FORWARD_TIME_TRIM = 1.0; // Increase if short; decrease if overshooting.
     private static final double COLLECTION_SHAKE_INCHES = 4.0; // Travel in each direction; returns to collection position.
     private static final int COLLECTION_SHAKE_CYCLES = 3; // Set to 0 to disable.
+    private static final double OPTIMISTIC_CROSS_FIELD_STRAFE_FEET = 18.0;
+
+    private enum TipConfidence { OPTIMISTIC, PESSIMISTIC }
+    private TipConfidence tipConfidence = TipConfidence.PESSIMISTIC;
 
     private Drive drive;
     private AutonomousDriveCommands autoDrive;
@@ -31,7 +34,7 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
     private Limelight3A limelight;
     private boolean isBlue = true;
     private int selectedPipeline = -1;
-    private int ballCount = 4;
+    private int ballCount = 5;
     private boolean shootFirst = true;
     private boolean lastCountLeft;
     private boolean lastCountRight;
@@ -51,17 +54,21 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
         intake.disableJamDetection();
         flowerPuller = new FlowerPuller(hardwareMap);
         launcher = new RotatingLauncher(hardwareMap, "Pollen", null, null);
+        launcher.setFeedIntake(intake);
         limelight = hardwareMap.tryGet(Limelight3A.class, "Limelight");
         if (limelight != null) {
             limelight.setPollRateHz(100);
             limelight.start();
         }
         changeTeam(true);
+        autoDrive.setPeriodicUpdate(this::updateNonShootingAim);
 
         TelemetryDashboard dashboard = new TelemetryDashboard(telemetry);
         while (!isStarted() && !isStopRequested()) {
             if (gamepad1.x) changeTeam(true);
             if (gamepad1.b) changeTeam(false);
+            if (gamepad1.y) tipConfidence = TipConfidence.OPTIMISTIC;
+            if (gamepad1.a) tipConfidence = TipConfidence.PESSIMISTIC;
             if (gamepad1.dpad_up) shootFirst = true;
             if (gamepad1.dpad_down) shootFirst = false;
             if (gamepad1.dpad_left && !lastCountLeft) ballCount--;
@@ -70,16 +77,18 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
             lastCountRight = gamepad1.dpad_right;
             if (ballCount < 0) {
                 ballCount = 0;
-            } else if (ballCount > 6) {
-                ballCount = 6;
+            } else if (ballCount > 7) {
+                ballCount = 7;
             }
 
             dashboard.addStatus(isBlue, drive.getDriveMode(), killMotors);
             telemetry.addData("Program", (shootFirst ? "Shoot First" : "Shoot Second")
                     + "          (d-pad up / down)");
             telemetry.addData("Balls", ballCount + "          (d-pad left / right)");
-            telemetry.addData("Turret sweep", launcher.isSweepEnabled() ? "ON" : "OFF");
-            telemetry.addLine();
+            /*telemetry.addData("Tip Confidence", tipConfidence == TipConfidence.OPTIMISTIC
+                    ? "Optimistic          (Y optimistic / A pessimistic)"
+                    : "Pessimistic          (Y optimistic / A pessimistic)");
+            */telemetry.addLine();
             telemetry.addLine();
             telemetry.addLine();
             telemetry.addLine();
@@ -122,7 +131,7 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
             if (shootFirst) {
                 if (!strafeRight(2.85) || !forward(0.35)) return;
             } else {
-                if (!strafeRight(1.5) || !turn(-90) || !strafeRight(1.2)) return;
+                if (!strafeRight(1.5) || !turn(-90) || !strafeRight(1.3)) return;
             }
 
             flowerPuller.setDown();
@@ -138,17 +147,24 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
             if (shootFirst) {
                 if (!strafeLeft(2.7) || !backward(1.2)) return;
             } else {
-                if (!turn(90) || !forward(1) || !strafeLeft(1.5)) return;
+                if (!turn(90) || !forward(1.3) || !strafeLeft(1.5)) return;
             }
 
-            collectionActive = false;
-            intake.spin(false);
-            if (!shootBalls(ballCount)) return;
+            if (false) {
+                collectionActive = false;
+                intake.spin(false);
+                if (tipConfidence == TipConfidence.OPTIMISTIC) {
+                    if (!strafeRight(OPTIMISTIC_CROSS_FIELD_STRAFE_FEET) || !turn(180) || !strafeLeft(1.5))
+                        return;
+                }
+            }
+
+            //if (!shootBalls(ballCount)) return;
 
             if (shootFirst) {
                 if (!turn(180)) return;
             }
-            
+
             drive.imu.resetYaw();
 
             telemetry.addLine("Autonomous route complete");
@@ -180,15 +196,15 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
             feedTargetLostSince = 0;
             feedSpeedLowSince = 0;
             feedPermitted = true;
-            launcher.setLoaderRunning(true);
+            launcher.setAutonomousLoaderRunning(true);
             intake.setAutonomousFeedRunning(true);
             long feedDurationMs = Intake.HOPPER_LOADER_FEED_CYCLE_ENABLED
                     ? Intake.HOPPER_LOADER_INITIAL_PAUSE_MS + Intake.HOPPER_LOADER_CYCLE_MS * count
+                            - Intake.LOADER_PULSE_DELAY_MS // Finish after the last pulse, before another cycle can start.
                     : FEED_MS_PER_BALL * count;
             if (!waitForDuration(feedDurationMs, "Feeding " + count + " balls", true)) return false;
             intake.onLoaderRunning(false);
             intake.spin(false);
-            if (!waitForDuration(LOADER_CLEAR_MS, "Clearing Loader", false)) return false;
             launcher.setLoaderRunning(false);
             return true;
         } finally {
@@ -230,6 +246,7 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
         long start = System.currentTimeMillis();
         try {
             while (opModeIsActive() && !killMotors && System.currentTimeMillis() - start < durationMs) {
+                updateNonShootingAim();
                 intake.spin(true);
                 intake.updateHopperStall();
                 drive.driveCommand(strafe, forward, 0, speedScale);
@@ -280,6 +297,12 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
                 isBlue, fixedFeedVelocity);
     }
 
+    private void updateNonShootingAim() {
+        if (!shootingActive) {
+            launcher.updateVisibleTagTracking(limelight == null ? null : limelight.getLatestResult(), isBlue);
+        }
+    }
+
     private void updateFeedReadiness() {
         updateShooting();
         long now = System.currentTimeMillis();
@@ -307,7 +330,9 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
         while (opModeIsActive() && elapsedMs < durationMs) {
             if (shootingActive) {
                 updateFeedReadiness();
-                launcher.setLoaderRunning(feedPermitted);
+                launcher.setAutonomousLoaderRunning(feedPermitted);
+            } else {
+                updateNonShootingAim();
             }
             long now = System.currentTimeMillis();
             if (pulseHopper) {

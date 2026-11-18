@@ -23,8 +23,10 @@ public class Intake {
     private static final long STALL_CONFIRM_MS = 150;
     private static final long REVERSE_BURST_MS = 250;
     public static final long HOPPER_LOADER_INITIAL_PAUSE_MS = 600;
-    private static final long HOPPER_LOADER_ON_MS = 200;
-    private static final long HOPPER_LOADER_OFF_MS = 600;
+    public static final long LOADER_PULSE_ON_MS = 125;
+    public static final long LOADER_PULSE_DELAY_MS = 900; // Shared loader-off / hopper pause-reverse interval.
+    private static final long HOPPER_LOADER_ON_MS = LOADER_PULSE_ON_MS;
+    private static final long HOPPER_LOADER_OFF_MS = LOADER_PULSE_DELAY_MS;
     public static final boolean HOPPER_LOADER_FEED_CYCLE_ENABLED = true; // Pause, pulse, and reverse while loading.
     private static final long HOPPER_LOADER_REVERSE_MS = 75;
     private static final long HOPPER_LOADER_REVERSE_DELAY_MS = 20;
@@ -172,7 +174,7 @@ public class Intake {
             runHopper(false);
             return;
         }
-        if (running && hopper != null) {
+        if (running) {
             if (!lastLoaderRunning) {
                 loaderFeedStartTime = HOPPER_LOADER_FEED_CYCLE_ENABLED
                         ? System.currentTimeMillis() : 0;
@@ -188,24 +190,44 @@ public class Intake {
         lastLoaderRunning = running;
     }
 
-    // A false value pauses an autonomous feed without ending/resetting its hopper cycle.
-    // Finish the feed with onLoaderRunning(false) followed by spin(false).
-    public void setAutonomousFeedRunning(boolean running) {
-        long now = System.currentTimeMillis();
-        if (CtrlAltDelOpMode.killMotors) {
-            onLoaderRunning(false);
-            spin(false);
+    public boolean isLoaderPulseActive() {
+        if (CtrlAltDelOpMode.killMotors || !lastLoaderRunning || loaderFeedPauseTime != 0) return false;
+        if (!HOPPER_LOADER_FEED_CYCLE_ENABLED) return true;
+        long elapsed = System.currentTimeMillis() - loaderFeedStartTime;
+        return loaderFeedStartTime != 0 && elapsed >= HOPPER_LOADER_INITIAL_PAUSE_MS
+                && (elapsed - HOPPER_LOADER_INITIAL_PAUSE_MS) % HOPPER_LOADER_CYCLE_MS < LOADER_PULSE_ON_MS;
+    }
+
+    public void updateLoaderFeedTiming(boolean running, boolean preserveOnPause) {
+        if (!preserveOnPause || CtrlAltDelOpMode.killMotors) {
+            onLoaderRunning(running && !CtrlAltDelOpMode.killMotors);
             return;
         }
+        long now = System.currentTimeMillis();
         if (running) {
             if (loaderFeedPauseTime != 0 && loaderFeedStartTime != 0) {
                 loaderFeedStartTime += now - loaderFeedPauseTime;
             }
             loaderFeedPauseTime = 0;
             onLoaderRunning(true);
-            spin(true);
         } else {
             if (lastLoaderRunning && loaderFeedPauseTime == 0) loaderFeedPauseTime = now;
+            runHopper(false);
+        }
+    }
+
+    // A false value pauses an autonomous feed without ending/resetting its hopper cycle.
+    // Finish the feed with onLoaderRunning(false) followed by spin(false).
+    public void setAutonomousFeedRunning(boolean running) {
+        updateLoaderFeedTiming(running, true);
+        if (CtrlAltDelOpMode.killMotors) {
+            onLoaderRunning(false);
+            spin(false);
+            return;
+        }
+        if (running) {
+            spin(true);
+        } else {
             pickupMotor.setPower(0);
             runHopper(false);
         }

@@ -20,7 +20,7 @@ public class Launcher {
 
     private static final double LOADER_POWER = 0.5; // Between 0 and 1
     private static final double LAUNCHER_IDLE_TICKS = 700;  // maintains spin
-    public static final double LAUNCHER_BASE_TICKS = 1100;  // full shooting speed from 2ft
+    public static final double LAUNCHER_BASE_TICKS = 980;  // full shooting speed from 2ft
     public static final double LAUNCHER_MINIMUM_TICKS = 700;  // full shooting speed from 2ft
     public static final double TICKS_PER_FOOT = 60;  // ticks to add for each extra foot of distance, based on testing
     public static final int LAUNCHER_TICKS_INCREMENTS = 25;  // When manually adjusting launcher, increment / decrement by this amount
@@ -63,7 +63,7 @@ public class Launcher {
         launcher.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         launcher.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
         launcher.setVelocity(0);
-        PIDFCoefficients newCoeffs = new PIDFCoefficients(14  , 0, 0.8, 13.2);
+        PIDFCoefficients newCoeffs = new PIDFCoefficients(14  , 0, 0.8, 15);
         launcher.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, newCoeffs);
     }
 

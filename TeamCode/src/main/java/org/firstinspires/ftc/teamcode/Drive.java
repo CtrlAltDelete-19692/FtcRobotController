@@ -34,6 +34,7 @@ public class Drive {
     private static final double SLOW_MODE_FACTOR = 0.2;
     private static final double TURBO_EXTRA_FACTOR = 0.15;
     private static final double STRAFE_CORRECTION = 1.7;
+    private static final double BIOBUZZ_ROTATION_SCALE = 0.85; // Reduce manual chassis rotation by 15%.
 
     double LFM = 0;
     double LBM = 0;
@@ -44,10 +45,12 @@ public class Drive {
     private boolean rbPressedLast = false;
     private boolean resetYawOnRightBumper = true;
     private final boolean chassisAutoAimEnabled;
+    private final double manualRotationScale;
 
     public Drive(HardwareMap hardwareMap, String driveSystem, boolean includeLimelight) {
         // Biobuzz aims its turret independently; RT must leave chassis rotation under driver control.
         chassisAutoAimEnabled = !driveSystem.equals("Biobuzz");
+        manualRotationScale = driveSystem.equals("Biobuzz") ? BIOBUZZ_ROTATION_SCALE : 1.0;
         if (includeLimelight) {
             limelight = hardwareMap.get(Limelight3A.class, "Limelight");
         }
@@ -138,9 +141,11 @@ public class Drive {
         double speedLimit = BASE_SPEED_LIMIT;
         if (gamepad.left_trigger > CtrlAltDelOpMode.TRIGGER_DEADZONE) {
             speedLimit = BASE_SPEED_LIMIT * SLOW_MODE_FACTOR;
-        } else if (gamepad.right_trigger > CtrlAltDelOpMode.TRIGGER_DEADZONE) {
-            speedLimit = Range.clip(BASE_SPEED_LIMIT + gamepad.right_trigger * TURBO_EXTRA_FACTOR, 0.0, 1.0);
         }
+        // Turbo disabled: RT controls the shooter without increasing chassis speed.
+        // else if (gamepad.right_trigger > CtrlAltDelOpMode.TRIGGER_DEADZONE) {
+        //     speedLimit = Range.clip(BASE_SPEED_LIMIT + gamepad.right_trigger * TURBO_EXTRA_FACTOR, 0.0, 1.0);
+        // }
 
         double strafe = gamepad.left_stick_x;
         double forward = -gamepad.left_stick_y; // Remember, Y stick value is reversed
@@ -150,6 +155,9 @@ public class Drive {
         if (Math.abs(strafe) < CtrlAltDelOpMode.STICK_DEADZONE) strafe = 0;
         if (Math.abs(forward) < CtrlAltDelOpMode.STICK_DEADZONE) forward = 0;
         if (Math.abs(rotate) < CtrlAltDelOpMode.STICK_DEADZONE) rotate = 0;
+        if (manualRotationScale < 1.0) {
+            rotate = Range.clip(rotate, -speedLimit, speedLimit) * manualRotationScale;
+        }
 
         if (driveMode == DriveMode.FIELD_CENTRIC) {
             double headingRad = -imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.RADIANS);

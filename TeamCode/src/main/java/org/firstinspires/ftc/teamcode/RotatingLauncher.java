@@ -14,12 +14,15 @@ import com.qualcomm.robotcore.hardware.TouchSensor;
 import com.qualcomm.robotcore.util.Range;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
+import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.Position;
 
 public class RotatingLauncher {
     private final String label;
     public AprilTag aprilTag;
     public Telemetry telemetry;
     public CRServo loader;
+    private Intake feedIntake;
 
     public DcMotorEx launcher;
 
@@ -33,6 +36,11 @@ public class RotatingLauncher {
     public static final double TICKS_PER_FOOT = 60;  // ticks to add for each extra foot of distance, based on testing
     public static final int LAUNCHER_TICKS_INCREMENTS = 25;  // When manually adjusting launcher, increment / decrement by this amount
     public static final double LAUNCHER_THRESHOLD = 0.94;  // What percentage of launcher set velocity is required to shoot
+    // Camera-space Y points down and Z points forward. Positive mounting pitch looks upward.
+    public static final double CAMERA_HEIGHT_INCHES = 14.0;
+    public static final double CAMERA_UPWARD_PITCH_DEGREES = Math.toDegrees(Math.atan2(17.0, 23.0)); // 36.47 degrees; lens normal to 23 mm down / 17 mm deep chamfer.
+    public static final double MIN_TARGET_HEIGHT_INCHES = 42.0; // Reject at or below this floor height.
+    private static final double HEIGHT_COMPARISON_EPSILON_INCHES = 1e-6; // Absorb rounding at the cutoff.
 
     public double launcherVelocity = 0;
     public int lvManualAdjustment = 0;
@@ -47,7 +55,7 @@ public class RotatingLauncher {
     private Servo led;
     public static final double TURRET_SERVO_POWER = 1.0;
     private static final double LED_RED_POSITION = 0.28;
-    private static final double LED_ORANGE_POSITION = 0.333;
+    private static final double LED_BLUE_POSITION = 0.611;
     private static final double LED_GREEN_POSITION = 0.50;
     private static final double LED_OFF_POSITION = 0.0;
     private static final long LED_BLINK_PERIOD_MS = 1000;
@@ -60,13 +68,15 @@ public class RotatingLauncher {
     private static final long HOME_FINE_SEARCH_TIMEOUT_MS = 2000;
     private static final double TRACK_KP = 0.025;
     private static final double TRACK_MIN_POWER = 0.1;
-    private static final double TRACK_MAX_POWER = 0.5;
+    private static final double TRACK_MAX_POWER = 0.4;
     private static final double TRACK_DIRECTION = -1.0; // Reverse if positive tx moves farther from zero.
-    private static final double TRACK_DEADBAND_DEGREES = 1.0;
+    private static final double TRACK_DEADBAND_DEGREES = 0.5;
+    private static final double TRACK_RESUME_DEGREES = 1.0; // Restart only outside this wider grace zone.
+    private static final long TARGET_ACQUISITION_SETTLE_MS = 150;
     // Temporary travel bounds until turret position/limit feedback is available.
     // One left/right/return search per aiming session; never sweep indefinitely.
-    private static final double SWEEP_POWER = 0.25;
-    private static final long SWEEP_LEG_MS = 400;
+    private static final double SWEEP_POWER = 0.10;
+    private static final long SWEEP_LEG_MS = 1000; // Longer, slower legs approximate the previous travel.
     public static final boolean DEFAULT_SWEEP_ENABLED = true;
     private HomeState homeState = HomeState.IDLE;
     private long homeStageStartTime;
@@ -79,6 +89,8 @@ public class RotatingLauncher {
     private TrackingState trackingState = TrackingState.IDLE;
     private int trackedTagId = -1;
     private double trackedTx = Double.NaN;
+    private boolean alignmentHeld;
+    private long acquisitionSettleUntil;
     private LLResultTypes.FiducialResult speedTarget;
     private boolean usingLimelightResults;
 
@@ -88,15 +100,13 @@ public class RotatingLauncher {
     }
 
     private enum TrackingState {
-        IDLE, TRACKING, ALIGNED, NO_TAG, LOST, SEARCHING, SEARCH_EXHAUSTED, CANCELED
+        IDLE, TRACKING, ALIGNED, SETTLING, NO_TAG, LOST, SEARCHING, SEARCH_EXHAUSTED, CANCELED
     }
 
     long actionStartTime = 0;
     private boolean lastLeftBumper = false;
     private boolean lastRightBumper = false;
-    private boolean lastFlywheelButton;
     private boolean lastSpinTrigger;
-    private boolean flywheelEnabled = true;
 
     enum ServoState {
         IDLE,
@@ -148,11 +158,6 @@ public class RotatingLauncher {
         update(gamepad, null, result, isBlue);
     }
 
-    public void updateEnabled(Gamepad gamepad) {
-        if (gamepad.right_bumper && !lastFlywheelButton) flywheelEnabled = !flywheelEnabled;
-        lastFlywheelButton = gamepad.right_bumper;
-    }
-
     public void setSweepEnabled(boolean enabled) {
         sweepEnabled = enabled;
         if (!enabled && trackingState == TrackingState.SEARCHING) {
@@ -171,12 +176,12 @@ public class RotatingLauncher {
         return loader != null && loader.getPower() > 0;
     }
 
-    public boolean hasLoader() {
-        return loader != null;
+    public void setFeedIntake(Intake intake) {
+        feedIntake = intake;
     }
 
-    public boolean isFlywheelEnabled() {
-        return flywheelEnabled;
+    public boolean hasLoader() {
+        return loader != null;
     }
 
     public void update(Gamepad gamepad, Gamepad gamepad2, LLResult result, boolean isBlue) {
@@ -186,7 +191,6 @@ public class RotatingLauncher {
         //    return;
         //}
 
-        updateEnabled(gamepad);
         if (gamepad.dpad_up && !lastHomeButton) {
             startHoming();
         }
@@ -213,12 +217,7 @@ public class RotatingLauncher {
     }
 
     private boolean hasAllianceTag(LLResult result, boolean isBlue) {
-        if (result == null || !result.isValid() || result.getFiducialResults() == null) return false;
-        for (LLResultTypes.FiducialResult tag : result.getFiducialResults()) {
-            int id = tag.getFiducialId();
-            if (isBlue ? id >= 38 && id <= 45 : id >= 30 && id <= 37) return true;
-        }
-        return false;
+        return selectTarget(result, isBlue, -1) != null;
     }
 
     private boolean isShootTriggerPressed(Gamepad gamepad, Gamepad gamepad2) {
@@ -243,57 +242,130 @@ public class RotatingLauncher {
         } else if (isHoming()) {
             cancelTracking();
             updateHoming();
-        } else if (isShootTriggerPressed(gamepad, gamepad2)) {
-            // Only a fresh RT press starts a session; manual override requires releasing RT to re-arm.
-            if (!trackingEnabled && !lastSpinTrigger) startAiming();
-            if (trackingEnabled) {
-                updateTracking(result, isBlue);
-            } else {
-                turretServo.setPower(0);
-            }
         } else {
-            stopTurret();
+            boolean shootTrigger = isShootTriggerPressed(gamepad, gamepad2);
+            if (shootTrigger && !lastSpinTrigger
+                    && selectTarget(result, isBlue, trackedTagId) == null) startAiming();
+            trackAvailableTag(result, isBlue, shootTrigger);
         }
     }
 
+    private void trackAvailableTag(LLResult result, boolean isBlue, boolean allowSearch) {
+        LLResultTypes.FiducialResult visible = selectTarget(result, isBlue, -1);
+        if (!trackingEnabled) {
+            if (visible == null && !allowSearch) {
+                turretServo.setPower(0);
+                return;
+            }
+            startAiming();
+        } else if (visible != null
+                && selectTarget(result, isBlue, trackedTagId) == null) {
+            // Follow another eligible visible tag when the previous one is no longer available.
+            startAiming();
+        }
+        updateTracking(result, isBlue, allowSearch);
+    }
+
+    public void updateVisibleTagTracking(LLResult result, boolean isBlue) {
+        if (CtrlAltDelOpMode.killMotors || turretServo == null) {
+            stopTurret();
+        } else if (!isHoming()) {
+            trackAvailableTag(result, isBlue, false);
+        }
+        usingLimelightResults = true;
+        speedTarget = selectTarget(result, isBlue, trackingEnabled ? trackedTagId : -1);
+        updateLed();
+    }
+
     // With a locked ID, never substitute another tag when that target disappears.
-    // Otherwise choose the alliance tag nearest the camera's horizontal center.
+    // Otherwise prefer the inner tags, breaking ties by camera horizontal center.
     private LLResultTypes.FiducialResult selectTarget(LLResult result, boolean isBlue, int targetId) {
         if (result == null || !result.isValid() || result.getFiducialResults() == null) return null;
         LLResultTypes.FiducialResult selected = null;
         double closestTx = Double.POSITIVE_INFINITY;
+        boolean selectedPreferred = false;
         for (LLResultTypes.FiducialResult tag : result.getFiducialResults()) {
             int id = tag.getFiducialId();
             double tx = tag.getTargetXDegrees();
             if ((isBlue ? id < 38 || id > 45 : id < 30 || id > 37)
-                    || !Double.isFinite(tx)) continue;
+                    || !Double.isFinite(tx) || !isTagAboveMinimumHeight(tag)) continue;
             if (targetId != -1) {
                 if (id == targetId) return tag;
-            } else if (Math.abs(tx) < closestTx) {
-                closestTx = Math.abs(tx);
-                selected = tag;
+            } else {
+                boolean preferred = isPreferredTag(id, isBlue);
+                if (selected == null || (preferred && !selectedPreferred)
+                        || (preferred == selectedPreferred && Math.abs(tx) < closestTx)) {
+                    closestTx = Math.abs(tx);
+                    selected = tag;
+                    selectedPreferred = preferred;
+                }
             }
         }
         return selected;
     }
 
+    private boolean isPreferredTag(int id, boolean isBlue) {
+        return isBlue ? id == 39 || id == 40 || id == 43 || id == 44
+                : id == 31 || id == 32 || id == 35 || id == 36;
+    }
+
+    public double getTagHeightInches(LLResultTypes.FiducialResult tag) {
+        if (tag.getTargetPoseCameraSpace() == null
+                || tag.getTargetPoseCameraSpace().getPosition() == null) return Double.NaN;
+        Position position = tag.getTargetPoseCameraSpace().getPosition().toUnit(DistanceUnit.INCH);
+        if (!Double.isFinite(position.y) || !Double.isFinite(position.z) || position.z <= 0) return Double.NaN;
+        double pitch = Math.toRadians(CAMERA_UPWARD_PITCH_DEGREES);
+        return CAMERA_HEIGHT_INCHES - position.y * Math.cos(pitch) + position.z * Math.sin(pitch);
+    }
+
+    public boolean isTagAboveMinimumHeight(LLResultTypes.FiducialResult tag) {
+        double height = getTagHeightInches(tag);
+        return Double.isFinite(height) && height > MIN_TARGET_HEIGHT_INCHES + HEIGHT_COMPARISON_EPSILON_INCHES;
+    }
+
     private void updateTracking(LLResult result, boolean isBlue) {
+        updateTracking(result, isBlue, true);
+    }
+
+    private void updateTracking(LLResult result, boolean isBlue, boolean allowSearch) {
+        if (trackedTagId != -1 && result != null && result.isValid() && result.getFiducialResults() != null) {
+            for (LLResultTypes.FiducialResult tag : result.getFiducialResults()) {
+                if (tag.getFiducialId() != trackedTagId) continue;
+                double height = getTagHeightInches(tag);
+                if (Double.isFinite(height) && height <= MIN_TARGET_HEIGHT_INCHES + HEIGHT_COMPARISON_EPSILON_INCHES) {
+                    trackedTagId = -1;
+                    trackedTx = Double.NaN;
+                }
+                break;
+            }
+        }
         LLResultTypes.FiducialResult target = selectTarget(result, isBlue, trackedTagId);
         if (target == null) {
             trackingState = trackedTagId == -1 ? TrackingState.NO_TAG : TrackingState.LOST;
-            updateSearchSweep();
+            if (allowSearch) updateSearchSweep();
+            else turretServo.setPower(0);
             return;
         }
 
         if (trackedTagId == -1) {
             trackedTagId = target.getFiducialId();
+            acquisitionSettleUntil = System.currentTimeMillis() + TARGET_ACQUISITION_SETTLE_MS;
+            alignmentHeld = false;
         }
         // A detected tag ends this session's search budget, even if it is lost later.
         sweepAttempted = true;
         sweepStartTime = 0;
 
         trackedTx = target.getTargetXDegrees();
-        if (Math.abs(trackedTx) <= TRACK_DEADBAND_DEGREES) {
+        if (System.currentTimeMillis() < acquisitionSettleUntil) {
+            trackingState = TrackingState.SETTLING;
+            turretServo.setPower(0);
+            return;
+        }
+        double error = Math.abs(trackedTx);
+        if (error <= TRACK_DEADBAND_DEGREES) alignmentHeld = true;
+        else if (error > TRACK_RESUME_DEGREES) alignmentHeld = false;
+        if (alignmentHeld) {
             trackingState = TrackingState.ALIGNED;
             turretServo.setPower(0);
         } else {
@@ -338,7 +410,8 @@ public class RotatingLauncher {
     }
 
     private boolean isTrackedTagVisible() {
-        return trackingState == TrackingState.TRACKING || trackingState == TrackingState.ALIGNED;
+        return trackingState == TrackingState.TRACKING || trackingState == TrackingState.ALIGNED
+                || trackingState == TrackingState.SETTLING;
     }
 
     private boolean isLedReady() {
@@ -350,7 +423,7 @@ public class RotatingLauncher {
         if (isLedReady()) return LED_GREEN_POSITION;
         boolean ramping = !CtrlAltDelOpMode.killMotors && launcherVelocity > LAUNCHER_IDLE_TICKS
                 && !upToSpeed();
-        double color = ramping ? LED_ORANGE_POSITION : LED_RED_POSITION;
+        double color = ramping ? LED_BLUE_POSITION : LED_RED_POSITION;
         boolean blinkOff = speedTarget != null
                 && System.currentTimeMillis() % LED_BLINK_PERIOD_MS >= LED_BLINK_PERIOD_MS / 2;
         return blinkOff ? LED_OFF_POSITION : color;
@@ -532,11 +605,10 @@ public class RotatingLauncher {
 
     private void launcher(Gamepad gamepad, Gamepad gamepad2) {
         boolean spinLauncher = isShootTriggerPressed(gamepad, gamepad2);
-        if (spinLauncher && !lastSpinTrigger) flywheelEnabled = true;
         lastSpinTrigger = spinLauncher;
 
         //if (leftViperSlideMotor.getCurrentPosition() > 30 || rightViperSlideMotor.getCurrentPosition() > 30 || killMotors) {
-        if (CtrlAltDelOpMode.killMotors || !flywheelEnabled) {
+        if (CtrlAltDelOpMode.killMotors) {
             readyToLaunch = false;
             launcherVelocity = 0;
             launcher.setVelocity(0);
@@ -597,6 +669,8 @@ public class RotatingLauncher {
     private void startAiming() {
         trackedTagId = -1;
         trackedTx = Double.NaN;
+        alignmentHeld = false;
+        acquisitionSettleUntil = 0;
         trackingEnabled = turretServo != null && !CtrlAltDelOpMode.killMotors;
         trackingState = trackingEnabled ? TrackingState.NO_TAG : TrackingState.IDLE;
         sweepAttempted = false;
@@ -631,9 +705,20 @@ public class RotatingLauncher {
     }
 
     public void setLoaderRunning(boolean running) {
+        setLoaderRunning(running, false);
+    }
+
+    public void setAutonomousLoaderRunning(boolean running) {
+        setLoaderRunning(running, true);
+    }
+
+    private void setLoaderRunning(boolean running, boolean preserveOnPause) {
+        boolean requested = running && loader != null && !CtrlAltDelOpMode.killMotors;
+        if (feedIntake != null) feedIntake.updateLoaderFeedTiming(requested, preserveOnPause);
         if (loader == null) return;
         loader.setDirection(CRServo.Direction.FORWARD);
-        loader.setPower(running && !CtrlAltDelOpMode.killMotors ? LOADER_CONTINUOUS_POWER : 0);
+        boolean pulseActive = feedIntake == null || feedIntake.isLoaderPulseActive();
+        loader.setPower(requested && pulseActive ? LOADER_CONTINUOUS_POWER : 0);
     }
 
     public void autoLauncher(int ticksPerSecond) {
@@ -670,22 +755,19 @@ public class RotatingLauncher {
 
     public void addCompetitionTelemetry(Telemetry telemetry) {
         telemetry.addData("AprilTag", speedTarget == null ? "" : "✅ " + speedTarget.getFiducialId());
-        if (flywheelEnabled && !CtrlAltDelOpMode.killMotors) {
-            String speedState = readyToLaunch ? "✅ Ready" :
-                    launcherVelocity < 0 ? "↩ Reverse" :
-                            launcherVelocity > LAUNCHER_IDLE_TICKS ? "⌛ Spinning up" : "Idle";
-            telemetry.addData("Flywheel", "%.0f / %.0f ticks/s  %s",
-                    launcher.getVelocity(), launcherVelocity, speedState);
-        }
+        String speedState = CtrlAltDelOpMode.killMotors || launcherVelocity == 0 ? "❌ Stopped" :
+                launcherVelocity < 0 ? "↩ Reverse" :
+                        launcherVelocity <= LAUNCHER_IDLE_TICKS ? "Idle" :
+                                upToSpeed() ? "✅ At speed" : "🔵 Spinning up";
+        telemetry.addData("Flywheel", "%.0f / %.0f ticks/s  %s",
+                launcher.getVelocity(), launcherVelocity, speedState);
 
         if (isHoming()) {
             telemetry.addLine("⌛ Turret: Homing");
         } else if (trackingEnabled && isTrackedTagVisible()) {
             telemetry.addData("🎯 Turret", "Tag %d  tx %+.1f°", trackedTagId, trackedTx);
         } else if (trackingEnabled) {
-            telemetry.addLine("🔍 Turret: " + (trackingState == TrackingState.SEARCHING ? "Sweeping" :
-                    trackingState == TrackingState.SEARCH_EXHAUSTED ? "Search stopped; no tag" :
-                            trackingState == TrackingState.LOST ? "Tag lost" : "Waiting for tag"));
+            telemetry.addLine("🔍 Turret: " + (trackingState == TrackingState.LOST ? "Tag lost" : "Waiting for tag"));
         } else if (homeState == HomeState.FAILED) {
             telemetry.addLine("⚠ Turret: Home failed");
         } else if (homeState == HomeState.UNAVAILABLE) {
@@ -696,15 +778,16 @@ public class RotatingLauncher {
     }
 
     public void addTelemetry(Telemetry telemetry) {
-        telemetry.addData("Turret sweep", sweepEnabled ? "ON" : "OFF");
         telemetry.addData("Manual speed adjustment", "%+d ticks/s", lvManualAdjustment);
         telemetry.addData("Tag speed adjustment", lvGoalDistanceAdjustment == -1 ? "Unavailable" :
                 lvGoalDistanceAdjustment + " ticks/s");
         if (speedTarget != null) {
             telemetry.addData("Speed target tag", speedTarget.getFiducialId());
+            telemetry.addData("Speed target height", "%.1f in (must be > %.0f)",
+                    getTagHeightInches(speedTarget), MIN_TARGET_HEIGHT_INCHES);
         }
         if (speedTarget == null) {
-            telemetry.addData("Distance input", "Selected tag not visible");
+            telemetry.addData("Distance input", "No eligible tag (missing or height-filtered)");
         } else if (speedTarget.getTargetPoseCameraSpace() == null
                 || speedTarget.getTargetPoseCameraSpace().getPosition() == null) {
             telemetry.addData("Distance input", "Camera-space pose unavailable");
@@ -729,6 +812,6 @@ public class RotatingLauncher {
         telemetry.addData("LED", led == null ? "Not configured" : isLedReady() ? "Green" :
                 (speedTarget != null ? "Flashing " : "")
                         + (!CtrlAltDelOpMode.killMotors && launcherVelocity > LAUNCHER_IDLE_TICKS
-                        && !upToSpeed() ? "orange" : "red"));
+                        && !upToSpeed() ? "blue" : "red"));
     }
 }
