@@ -136,6 +136,10 @@ public class Intake {
             reversing = false;
             forwardStartTime = 0;
             stallStartTime = 0;
+            hopperStalled = false;
+            hopperStallStartTime = 0;
+            hopperForwardStartTime = 0;
+            hopperPeakSpeed = 0;
         }
         lastY = yPressed;
     }
@@ -158,6 +162,10 @@ public class Intake {
 
     public boolean isHopperLoaderOverride() {
         return hopperLoaderOverride;
+    }
+
+    public boolean isLoaderFeedRequested() {
+        return lastLoaderRunning;
     }
 
     public void runHopper(boolean running) {
@@ -333,8 +341,10 @@ public class Intake {
             if (hopperEncoder != null && hopperStallDetectionEnabled) telemetry.addData("Hopper slowdown limit", "%.0f ticks/s",
                     Math.max(STALL_SPEED_TICKS_PER_SECOND, hopperPeakSpeed * HOPPER_SLOWDOWN_FRACTION));
             telemetry.addData("Hopper", !hopperStallDetectionEnabled ? "Jam detection disabled" :
-                    hopperStalled ? "⚠ Stalled; run Loader to restart" : "✅ Clear");
+                    hopperStalled ? "⚠ Stalled; toggle Y or run Loader to restart" : "✅ Clear");
         }
+        telemetry.addData("Loader cycle", !lastLoaderRunning ? "Off" :
+                isLoaderPulseActive() ? "Pulsing" : "Waiting for pulse");
         if (jamRecoveryEnabled) {
             telemetry.addData("Intake Speed", intakeEncoder == null ? "No encoder" :
                     String.format("%.0f ticks/s", intakeEncoder.getVelocity()));

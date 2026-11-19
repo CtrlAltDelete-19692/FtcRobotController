@@ -52,7 +52,7 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
             intake.updateEnabled(gamepad1, gamepad2);
             updateDebugTelemetry();
 
-            dashboard.addStatus(isBlue, drive.getDriveMode(), killMotors);
+            dashboard.addStatus(isBlue, drive.getDriveMode());
             telemetry.addLine("Flywheel speed: gamepad 2 LB / RB");
             if (debugTelemetry) {
                 telemetry.addData("Intake (Y)", intake.isEnabled() ? "ON" : "OFF");
@@ -89,7 +89,7 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
             //nectarLauncher.update(gamepad1);
 
             // Telemetry
-            dashboard.addStatus(isBlue, drive.getDriveMode(), killMotors);
+            dashboard.addStatus(isBlue, drive.getDriveMode());
             addCompetitionTelemetry();
             if (debugTelemetry) {
                 telemetry.addLine();
@@ -117,7 +117,8 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
                 ballPurge.isRunning() ? "↩ Flywheel" : "✅ Flywheel";
         String loaderStatus = !pollenLauncher.hasLoader() ? "⚠ Loader (2: A/B)" :
                 ballPurge.isRunning() ? "↩ Loader" :
-                        pollenLauncher.isLoaderRunning() ? "✅ Loader (2: A/B)" : "❌ Loader (2: A/B)";
+                        pollenLauncher.isLoaderRunning() ? "✅ Loader (2: A/B)" :
+                                intake.isLoaderFeedRequested() ? "⌛ Loader (pulse wait)" : "❌ Loader (2: A/B)";
         String hopperStatus = !intake.hasHopper() ? "⚠ Hopper" :
                 ballPurge.isRunning() ? "↩ Hopper" :
                 intake.isHopperStalled() ? "⚠ Hopper stalled" :

@@ -7,10 +7,6 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 @Autonomous(name = "BiobuzzAutonomous")
 public class BiobuzzAutonomous extends CtrlAltDelOpMode {
     private static final long SHOOT_READY_TIMEOUT_MS = 5000;
-    private static final long FEED_TARGET_LOSS_GRACE_MS = 250;
-    private static final long FEED_SPEED_DROP_GRACE_MS = 150;
-    private static final double FEED_MIN_SPEED_FRACTION = 0.80;
-    private static final double FEED_RESUME_SPEED_FRACTION = 0.94;
     private static final long FEED_MS_PER_BALL = 1000;
     private static final long FORWARD_MS_PER_FOOT = 440; // Starting estimate from Decode; tune on Biobuzz.
     private static final long STRAFE_MS_PER_FOOT = 500;  // Starting estimate from Decode; tune on Biobuzz.
@@ -43,9 +39,6 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
     private boolean shootingActive;
     private boolean collectionActive;
     private double fixedFeedVelocity = Double.NaN;
-    private long feedTargetLostSince;
-    private long feedSpeedLowSince;
-    private boolean feedPermitted;
 
     @Override
     public void runOpMode() {
@@ -84,7 +77,7 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
                 ballCount = 8;
             }
 
-            dashboard.addStatus(isBlue, drive.getDriveMode(), killMotors);
+            dashboard.addStatus(isBlue, drive.getDriveMode());
             telemetry.addData("Program", (shootFirst ? "Shoot First" : "Shoot Second")
                     + "          (d-pad up / down)");
             telemetry.addData("Balls", ballCount + "          (d-pad left / right)");
@@ -196,16 +189,9 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
         launcher.startAutonomousAiming();
         shootingActive = true;
         try {
-            if (!waitForShotReady()) {
-                telemetry.addLine("Aim or shooting speed unavailable; feed skipped.");
-                telemetry.update();
-                return false;
-            }
+            if (!waitForShotReadyOrTimeout()) return false;
 
             fixedFeedVelocity = launcher.launcherVelocity;
-            feedTargetLostSince = 0;
-            feedSpeedLowSince = 0;
-            feedPermitted = true;
             launcher.setAutonomousLoaderRunning(true);
             intake.setAutonomousFeedRunning(true);
             long feedDurationMs = Intake.HOPPER_LOADER_FEED_CYCLE_ENABLED
@@ -220,7 +206,6 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
         } finally {
             shootingActive = false;
             fixedFeedVelocity = Double.NaN;
-            feedPermitted = false;
             intake.onLoaderRunning(false);
             intake.spin(false);
             launcher.setLoaderRunning(false);
@@ -289,7 +274,7 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
         return autoDrive.turnDegrees(degrees);
     }
 
-    private boolean waitForShotReady() {
+    private boolean waitForShotReadyOrTimeout() {
         long start = System.currentTimeMillis();
         while (opModeIsActive()
                 && System.currentTimeMillis() - start < SHOOT_READY_TIMEOUT_MS) {
@@ -299,7 +284,11 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
             telemetry.update();
             idle();
         }
-        return false;
+        if (opModeIsActive()) {
+            telemetry.addLine("Shooting at current speed after spin-up timeout");
+            telemetry.update();
+        }
+        return opModeIsActive();
     }
 
     private void updateShooting() {
@@ -313,55 +302,18 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
         }
     }
 
-    private void updateFeedReadiness() {
-        updateShooting();
-        long now = System.currentTimeMillis();
-        boolean targetVisible = launcher.isAimingTargetVisible() || launcher.isUsingNoTagFallback();
-        double velocity = launcher.launcher.getVelocity();
-        boolean speedLow = !Double.isFinite(velocity) || velocity < fixedFeedVelocity * FEED_MIN_SPEED_FRACTION;
-        if (targetVisible) feedTargetLostSince = 0;
-        else if (feedTargetLostSince == 0) feedTargetLostSince = now;
-        if (!speedLow) feedSpeedLowSince = 0;
-        else if (feedSpeedLowSince == 0) feedSpeedLowSince = now;
-
-        if (killMotors || feedTargetLostSince != 0 && now - feedTargetLostSince >= FEED_TARGET_LOSS_GRACE_MS
-                || feedSpeedLowSince != 0 && now - feedSpeedLowSince >= FEED_SPEED_DROP_GRACE_MS) {
-            feedPermitted = false;
-        } else if (!feedPermitted && targetVisible && Double.isFinite(velocity)
-                && velocity >= fixedFeedVelocity * FEED_RESUME_SPEED_FRACTION) {
-            feedPermitted = true;
-        }
-    }
-
     private boolean waitForDuration(long durationMs, String phase, boolean pulseHopper) {
-        long lastUpdate = System.currentTimeMillis();
-        long lastReady = lastUpdate;
-        long elapsedMs = 0;
-        while (opModeIsActive() && elapsedMs < durationMs) {
+        long start = System.currentTimeMillis();
+        while (opModeIsActive() && System.currentTimeMillis() - start < durationMs) {
             if (shootingActive) {
-                updateFeedReadiness();
-                launcher.setAutonomousLoaderRunning(feedPermitted);
+                updateShooting();
+                launcher.setAutonomousLoaderRunning(true);
             } else {
                 updateNonShootingAim();
             }
-            long now = System.currentTimeMillis();
             if (pulseHopper) {
-                intake.setAutonomousFeedRunning(feedPermitted);
-                if (feedPermitted) {
-                    elapsedMs += now - lastUpdate;
-                    lastReady = now;
-                } else {
-                    intake.runHopper(false);
-                    if (now - lastReady >= SHOOT_READY_TIMEOUT_MS) {
-                        telemetry.addLine("Aim or shooting speed lost; feed stopped.");
-                        telemetry.update();
-                        return false;
-                    }
-                }
-            } else {
-                elapsedMs += now - lastUpdate;
+                intake.setAutonomousFeedRunning(true);
             }
-            lastUpdate = now;
             if (collectionActive && !killMotors) intake.spin(true);
             intake.updateHopperStall();
             telemetry.addData("Autonomous", phase);

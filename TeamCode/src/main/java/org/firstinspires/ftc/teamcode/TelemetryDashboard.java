@@ -27,7 +27,11 @@ public class TelemetryDashboard {
         addStatus(isBlue ? "\uD83D\uDFE6 Blue" : "\uD83D\uDFE5 Red", driveMode, killMotors);
     }
 
-    private void addStatus(String teamColor, Drive.DriveMode driveMode, boolean killMotors) {
+    public void addStatus(boolean isBlue, Drive.DriveMode driveMode) {
+        addStatus(isBlue ? "\uD83D\uDFE6 Blue" : "\uD83D\uDFE5 Red", driveMode, null);
+    }
+
+    private void addStatus(String teamColor, Drive.DriveMode driveMode, Boolean killMotors) {
         String modeLabel = "Unknown Drive Mode";
         if (driveMode == Drive.DriveMode.FIELD_CENTRIC) {
             modeLabel = "\uD83E\uDDED " + driveMode;
@@ -35,8 +39,8 @@ public class TelemetryDashboard {
             modeLabel = "\uD83C\uDFAE " + driveMode;
         }
 
-        telemetry.addLine(teamColor + "      " + modeLabel + "      "
-                + (killMotors ? "❌ Motors (X)" : "✅ Motors (X)"));
+        telemetry.addLine(teamColor + "      " + modeLabel + (killMotors == null ? "" :
+                "      " + (killMotors ? "❌ Motors (X)" : "✅ Motors (X)")));
         telemetry.addLine();
 
         if (driveMode != null) {
