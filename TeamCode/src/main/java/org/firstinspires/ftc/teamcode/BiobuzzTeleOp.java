@@ -112,7 +112,8 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
         if (ballPurge.isRunning()) telemetry.addLine("↩ Clearing balls (gamepad 2 LT)");
         String intakeStatus = ballPurge.isRunning() ? "↩ Intake" :
                 killMotors || !intake.isEnabled() ? "❌ Intake (Y)" :
-                        intake.isReversing() ? "↩ Intake (Y)" : "✅ Intake (Y)";
+                        intake.isIntakeFeedPauseActive() ? "⏸ Intake (feed pause)" :
+                                intake.isReversing() ? "↩ Intake (Y)" : "✅ Intake (Y)";
         String flywheelStatus = killMotors ? "❌ Flywheel" :
                 ballPurge.isRunning() ? "↩ Flywheel" : "✅ Flywheel";
         String loaderStatus = !pollenLauncher.hasLoader() ? "⚠ Loader (2: A/B)" :

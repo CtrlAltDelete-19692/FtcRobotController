@@ -246,14 +246,20 @@ public class RotatingLauncher {
             return;
         }
 
+        boolean manualLeft = gamepad2 != null && gamepad2.dpad_left;
+        boolean manualRight = gamepad2 != null && gamepad2.dpad_right;
+        double manualStickX = gamepad2 != null ? gamepad2.left_stick_x : 0;
+
         if (CtrlAltDelOpMode.killMotors) {
             if (isHoming()) homeState = HomeState.CANCELED;
             cancelTracking();
             turretServo.setPower(0);
-        } else if (gamepad.dpad_left || gamepad.dpad_right) {
+        } else if (manualLeft || manualRight
+                || Math.abs(manualStickX) > CtrlAltDelOpMode.STICK_DEADZONE) {
             if (isHoming()) homeState = HomeState.CANCELED;
             cancelTracking();
-            turretServo.setPower(gamepad.dpad_left ? TURRET_SERVO_POWER : -TURRET_SERVO_POWER);
+            turretServo.setPower(manualLeft ? TURRET_SERVO_POWER
+                    : manualRight ? -TURRET_SERVO_POWER : -manualStickX * TURRET_SERVO_POWER);
         } else if (isHoming()) {
             cancelTracking();
             updateHoming();
@@ -726,7 +732,8 @@ public class RotatingLauncher {
         if (feedIntake != null) feedIntake.onLoaderRunning(requested);
         if (loader == null) return;
         loader.setDirection(CRServo.Direction.FORWARD);
-        loader.setPower(requested ? LOADER_CONTINUOUS_POWER : 0);
+        boolean pulseActive = feedIntake == null || feedIntake.isLoaderPulseActive();
+        loader.setPower(requested && pulseActive ? LOADER_CONTINUOUS_POWER : 0);
     }
 
     public void setPurgeRunning(boolean running) {

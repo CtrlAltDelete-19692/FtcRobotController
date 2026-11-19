@@ -23,8 +23,10 @@ public class Intake {
     private static final long STALL_CONFIRM_MS = 150;
     private static final long REVERSE_BURST_MS = 200;
     public static final long HOPPER_LOADER_FORWARD_MS = 250;
-    public static final long HOPPER_LOADER_REVERSE_MS = 150;
+    public static final long LOADER_PULSE_ON_MS = 200;
+    public static final long HOPPER_LOADER_REVERSE_MS = 125;
     public static final long HOPPER_LOADER_OFF_MS = 800;
+    public static final long INTAKE_FEED_PAUSE_MS = 200;
     public static final boolean HOPPER_LOADER_FEED_CYCLE_ENABLED = true;
     private static final double HOPPER_LOADER_REVERSE_POWER = 0.3;
     public static final long HOPPER_LOADER_CYCLE_MS = HOPPER_LOADER_FORWARD_MS
@@ -182,13 +184,11 @@ public class Intake {
             hopperPeakSpeed = 0;
         }
         if (!shouldRun) hopperForwardStartTime = 0;
-        // Let the short reverse clear a ball even if the forward phase detected a stall.
-        hopper.setPower(shouldRun ? HOPPER_POWER
-                : reverseHopper ? -HOPPER_LOADER_REVERSE_POWER : 0);
+        hopper.setPower(shouldRun ? HOPPER_POWER : reverseHopper ? -HOPPER_LOADER_REVERSE_POWER : 0);
     }
 
     public void spin(boolean spinLauncher) {
-        pickupMotor.setPower(spinLauncher ? INTAKE_POWER : 0);
+        pickupMotor.setPower(spinLauncher && !isIntakeFeedPauseActive() ? INTAKE_POWER : 0);
         runHopper(spinLauncher || hopperLoaderOverride);
     }
 
@@ -202,18 +202,37 @@ public class Intake {
         }
         if (running) {
             if (!lastLoaderRunning) {
+                intakeEnabled = true;
                 loaderFeedStartTime = HOPPER_LOADER_FEED_CYCLE_ENABLED
                         ? System.currentTimeMillis() : 0;
                 hopperStalled = false;
+                hopperLoaderOverride = true;
+                spin(true);
+            } else {
+                hopperLoaderOverride = true;
+                runHopper(true);
             }
-            hopperLoaderOverride = true;
-            runHopper(true);
         } else if (lastLoaderRunning) {
             loaderFeedStartTime = 0;
             hopperLoaderOverride = false;
             runHopper(intakeEnabled);
         }
         lastLoaderRunning = running;
+    }
+
+    public boolean isLoaderPulseActive() {
+        if (CtrlAltDelOpMode.killMotors || !lastLoaderRunning) return false;
+        if (!HOPPER_LOADER_FEED_CYCLE_ENABLED) return true;
+        long phase = (System.currentTimeMillis() - loaderFeedStartTime) % HOPPER_LOADER_CYCLE_MS;
+        return phase >= HOPPER_LOADER_FORWARD_MS - LOADER_PULSE_ON_MS
+                && phase < HOPPER_LOADER_FORWARD_MS;
+    }
+
+    public boolean isIntakeFeedPauseActive() {
+        if (!HOPPER_LOADER_FEED_CYCLE_ENABLED || !lastLoaderRunning || loaderFeedStartTime == 0) return false;
+        long phase = (System.currentTimeMillis() - loaderFeedStartTime) % HOPPER_LOADER_CYCLE_MS;
+        long stopStart = HOPPER_LOADER_FORWARD_MS + HOPPER_LOADER_REVERSE_MS;
+        return phase >= stopStart && phase < stopStart + INTAKE_FEED_PAUSE_MS;
     }
 
     public void setAutonomousFeedRunning(boolean running) {
@@ -258,6 +277,14 @@ public class Intake {
             spin(false);
             forwardStartTime = 0;
             stallStartTime = 0;
+            return;
+        }
+
+        if (isIntakeFeedPauseActive()) {
+            reversing = false;
+            forwardStartTime = 0;
+            stallStartTime = 0;
+            spin(true);
             return;
         }
 
