@@ -192,10 +192,11 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
             if (!waitForShotReadyOrTimeout()) return false;
 
             fixedFeedVelocity = launcher.launcherVelocity;
+            intake.setHopperAfterReverseForwardEnabled(true);
             launcher.setAutonomousLoaderRunning(true);
             intake.setAutonomousFeedRunning(true);
             long feedDurationMs = Intake.HOPPER_LOADER_FEED_CYCLE_ENABLED
-                    ? Intake.HOPPER_LOADER_CYCLE_MS * count // Include the final intake pause and restart.
+                    ? Intake.HOPPER_LOADER_CYCLE_MS * count // Let the final cycle finish without staging another ball.
                     : FEED_MS_PER_BALL * count;
             if (!waitForDuration(feedDurationMs, "Feeding " + count + " balls", true)) return false;
             intake.onLoaderRunning(false);
@@ -208,6 +209,7 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
             intake.onLoaderRunning(false);
             intake.spin(false);
             launcher.setLoaderRunning(false);
+            intake.setHopperAfterReverseForwardEnabled(true);
             launcher.stopTurret();
             launcher.stopLauncher();
         }
@@ -304,6 +306,8 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
     private boolean waitForDuration(long durationMs, String phase, boolean pulseHopper) {
         long start = System.currentTimeMillis();
         while (opModeIsActive() && System.currentTimeMillis() - start < durationMs) {
+            if (pulseHopper) intake.setHopperAfterReverseForwardEnabled(
+                    System.currentTimeMillis() - start < durationMs - Intake.HOPPER_LOADER_CYCLE_MS);
             if (shootingActive) {
                 updateShooting();
                 launcher.setAutonomousLoaderRunning(true);
