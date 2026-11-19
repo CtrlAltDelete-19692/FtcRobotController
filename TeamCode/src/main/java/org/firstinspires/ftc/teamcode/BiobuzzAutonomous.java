@@ -195,8 +195,8 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
             launcher.setAutonomousLoaderRunning(true);
             intake.setAutonomousFeedRunning(true);
             long feedDurationMs = Intake.HOPPER_LOADER_FEED_CYCLE_ENABLED
-                    ? Intake.HOPPER_LOADER_INITIAL_PAUSE_MS + Intake.HOPPER_LOADER_CYCLE_MS * count
-                            - Intake.HOPPER_LOADER_OFF_MS // Finish after the last loader pulse, before the final rest.
+                    ? Intake.HOPPER_LOADER_CYCLE_MS * count - Intake.HOPPER_LOADER_OFF_MS
+                    // Finish after the last hopper reversal, before the final rest.
                     : FEED_MS_PER_BALL * count;
             if (!waitForDuration(feedDurationMs, "Feeding " + count + " balls", true)) return false;
             intake.onLoaderRunning(false);

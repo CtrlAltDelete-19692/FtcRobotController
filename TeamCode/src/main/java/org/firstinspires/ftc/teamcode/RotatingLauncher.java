@@ -88,6 +88,7 @@ public class RotatingLauncher {
     private long sweepStartTime;
     private boolean trackingEnabled;
     private boolean purgeRunning;
+    private boolean automaticFeedLatched;
     private TrackingState trackingState = TrackingState.IDLE;
     private int trackedTagId = -1;
     private double trackedTx = Double.NaN;
@@ -214,13 +215,16 @@ public class RotatingLauncher {
     private void loader(Gamepad gamepad, Gamepad gamepad2, LLResult result, boolean isBlue) {
         boolean manualFeed = /* gamepad.b || */ gamepad2 != null && gamepad2.b;
         boolean automaticFeed = /* gamepad.a || */ gamepad2 != null && gamepad2.a;
-        // Once powered, finish this pulse despite readiness fluctuations while A remains held.
-        // The shared phase ends this allowance before another pulse can begin.
-        boolean finishPulse = isLoaderRunning() && feedIntake != null && feedIntake.isLoaderPulseActive();
         boolean readyToStart = readyToLaunch
                 && launcher.getVelocity() >= LAUNCHER_MINIMUM_TICKS
                 && hasAllianceTag(result, isBlue);
-        boolean feed = manualFeed || automaticFeed && (readyToStart || finishPulse);
+        // Once A starts feeding, keep it running through brief speed or tag losses.
+        if (!automaticFeed || !isShootTriggerPressed(gamepad, gamepad2) || !trackingEnabled) {
+            automaticFeedLatched = false;
+        } else if (readyToStart) {
+            automaticFeedLatched = true;
+        }
+        boolean feed = manualFeed || automaticFeedLatched;
         servoState = ServoState.IDLE;
         runningSequence = false;
         lastLaunch = false;
@@ -718,13 +722,18 @@ public class RotatingLauncher {
     }
 
     public void setLoaderRunning(boolean running) {
-        setLoaderRunning(running, false);
+        boolean requested = running && loader != null && !CtrlAltDelOpMode.killMotors;
+        if (feedIntake != null) feedIntake.onLoaderRunning(requested);
+        if (loader == null) return;
+        loader.setDirection(CRServo.Direction.FORWARD);
+        loader.setPower(requested ? LOADER_CONTINUOUS_POWER : 0);
     }
 
     public void setPurgeRunning(boolean running) {
         if (purgeRunning == running) return;
         purgeRunning = running;
         if (running) {
+            automaticFeedLatched = false;
             setLoaderRunning(false);
             applyPurge();
         } else {
@@ -751,16 +760,7 @@ public class RotatingLauncher {
     }
 
     public void setAutonomousLoaderRunning(boolean running) {
-        setLoaderRunning(running, true);
-    }
-
-    private void setLoaderRunning(boolean running, boolean preserveOnPause) {
-        boolean requested = running && loader != null && !CtrlAltDelOpMode.killMotors;
-        if (feedIntake != null) feedIntake.updateLoaderFeedTiming(requested, preserveOnPause);
-        if (loader == null) return;
-        loader.setDirection(CRServo.Direction.FORWARD);
-        boolean pulseActive = feedIntake == null || feedIntake.isLoaderPulseActive();
-        loader.setPower(requested && pulseActive ? LOADER_CONTINUOUS_POWER : 0);
+        setLoaderRunning(running);
     }
 
     public void autoLauncher(int ticksPerSecond) {

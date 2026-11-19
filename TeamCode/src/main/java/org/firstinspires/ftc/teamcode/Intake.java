@@ -22,15 +22,13 @@ public class Intake {
     private static final long STARTUP_GRACE_MS = 400;
     private static final long STALL_CONFIRM_MS = 150;
     private static final long REVERSE_BURST_MS = 200;
-    public static final long HOPPER_LOADER_INITIAL_PAUSE_MS = 600;
-    public static final long LOADER_PULSE_ON_MS = 200;
-    public static final long HOPPER_LOADER_FORWARD_MS = 200;
-    public static final long HOPPER_LOADER_OFF_MS = 800; // Loader recovery wait; hopper continues forward.
+    public static final long HOPPER_LOADER_FORWARD_MS = 250;
+    public static final long HOPPER_LOADER_REVERSE_MS = 150;
+    public static final long HOPPER_LOADER_OFF_MS = 800;
     public static final boolean HOPPER_LOADER_FEED_CYCLE_ENABLED = true;
-    private static final long HOPPER_LOADER_REVERSE_MS = 175; // Overlaps the start of the loader pulse.
     private static final double HOPPER_LOADER_REVERSE_POWER = 0.3;
     public static final long HOPPER_LOADER_CYCLE_MS = HOPPER_LOADER_FORWARD_MS
-            + LOADER_PULSE_ON_MS + HOPPER_LOADER_OFF_MS;
+            + HOPPER_LOADER_REVERSE_MS + HOPPER_LOADER_OFF_MS;
     private boolean jamRecoveryEnabled;
     private boolean hopperStallDetectionEnabled = true;
     private boolean reversing;
@@ -45,7 +43,6 @@ public class Intake {
     private boolean hopperLoaderOverride;
     private boolean lastLoaderRunning;
     private long loaderFeedStartTime;
-    private long loaderFeedPauseTime;
     private boolean intakeEnabled = true;
     private boolean lastY = false;
     private boolean purgeRunning;
@@ -172,18 +169,10 @@ public class Intake {
         hopperRequested = running && !CtrlAltDelOpMode.killMotors;
         boolean reverseHopper = false;
         if (HOPPER_LOADER_FEED_CYCLE_ENABLED && hopperRequested && loaderFeedStartTime != 0) {
-            long elapsed = System.currentTimeMillis() - loaderFeedStartTime;
-            if (elapsed < HOPPER_LOADER_INITIAL_PAUSE_MS) {
-                hopperRequested = false;
-            } else {
-                long phase = (elapsed - HOPPER_LOADER_INITIAL_PAUSE_MS) % HOPPER_LOADER_CYCLE_MS;
-                // Advance the remaining balls during the loader's flywheel-recovery wait.
-                hopperRequested = phase < HOPPER_LOADER_FORWARD_MS
-                        || phase >= HOPPER_LOADER_FORWARD_MS + LOADER_PULSE_ON_MS;
-                reverseHopper = phase >= HOPPER_LOADER_FORWARD_MS
-                        && phase < HOPPER_LOADER_FORWARD_MS
-                        + Math.min(HOPPER_LOADER_REVERSE_MS, LOADER_PULSE_ON_MS);
-            }
+            long phase = (System.currentTimeMillis() - loaderFeedStartTime) % HOPPER_LOADER_CYCLE_MS;
+            hopperRequested = phase < HOPPER_LOADER_FORWARD_MS;
+            reverseHopper = phase >= HOPPER_LOADER_FORWARD_MS
+                    && phase < HOPPER_LOADER_FORWARD_MS + HOPPER_LOADER_REVERSE_MS;
         }
         if (hopper == null) return;
         boolean shouldRun = hopperRequested && !hopperStalled;
@@ -193,9 +182,9 @@ public class Intake {
             hopperPeakSpeed = 0;
         }
         if (!shouldRun) hopperForwardStartTime = 0;
+        // Let the short reverse clear a ball even if the forward phase detected a stall.
         hopper.setPower(shouldRun ? HOPPER_POWER
-                : reverseHopper && !hopperStalled
-                        ? -HOPPER_LOADER_REVERSE_POWER : 0);
+                : reverseHopper ? -HOPPER_LOADER_REVERSE_POWER : 0);
     }
 
     public void spin(boolean spinLauncher) {
@@ -204,7 +193,6 @@ public class Intake {
     }
 
     public void onLoaderRunning(boolean running) {
-        if (!running) loaderFeedPauseTime = 0;
         if (CtrlAltDelOpMode.killMotors) {
             loaderFeedStartTime = 0;
             hopperLoaderOverride = false;
@@ -228,38 +216,8 @@ public class Intake {
         lastLoaderRunning = running;
     }
 
-    public boolean isLoaderPulseActive() {
-        if (CtrlAltDelOpMode.killMotors || !lastLoaderRunning || loaderFeedPauseTime != 0) return false;
-        if (!HOPPER_LOADER_FEED_CYCLE_ENABLED) return true;
-        long elapsed = System.currentTimeMillis() - loaderFeedStartTime;
-        if (loaderFeedStartTime == 0 || elapsed < HOPPER_LOADER_INITIAL_PAUSE_MS) return false;
-        long phase = (elapsed - HOPPER_LOADER_INITIAL_PAUSE_MS) % HOPPER_LOADER_CYCLE_MS;
-        return phase >= HOPPER_LOADER_FORWARD_MS
-                && phase < HOPPER_LOADER_FORWARD_MS + LOADER_PULSE_ON_MS;
-    }
-
-    public void updateLoaderFeedTiming(boolean running, boolean preserveOnPause) {
-        if (!preserveOnPause || CtrlAltDelOpMode.killMotors) {
-            onLoaderRunning(running && !CtrlAltDelOpMode.killMotors);
-            return;
-        }
-        long now = System.currentTimeMillis();
-        if (running) {
-            if (loaderFeedPauseTime != 0 && loaderFeedStartTime != 0) {
-                loaderFeedStartTime += now - loaderFeedPauseTime;
-            }
-            loaderFeedPauseTime = 0;
-            onLoaderRunning(true);
-        } else {
-            if (lastLoaderRunning && loaderFeedPauseTime == 0) loaderFeedPauseTime = now;
-            runHopper(false);
-        }
-    }
-
-    // A false value pauses an autonomous feed without ending/resetting its hopper cycle.
-    // Finish the feed with onLoaderRunning(false) followed by spin(false).
     public void setAutonomousFeedRunning(boolean running) {
-        updateLoaderFeedTiming(running, true);
+        onLoaderRunning(running);
         if (CtrlAltDelOpMode.killMotors) {
             onLoaderRunning(false);
             spin(false);
@@ -275,6 +233,8 @@ public class Intake {
 
     public void updateHopperStall() {
         if (!hopperStallDetectionEnabled) return;
+        // The loader feed cycle handles spacing with a reverse and stop; do not latch off later forward phases.
+        if (lastLoaderRunning) return;
         if (hopperEncoder == null || !hopperRequested || hopperStalled) return;
         long now = System.currentTimeMillis();
         if (now - hopperForwardStartTime < STARTUP_GRACE_MS) return;
@@ -343,8 +303,17 @@ public class Intake {
             telemetry.addData("Hopper", !hopperStallDetectionEnabled ? "Jam detection disabled" :
                     hopperStalled ? "⚠ Stalled; toggle Y or run Loader to restart" : "✅ Clear");
         }
-        telemetry.addData("Loader cycle", !lastLoaderRunning ? "Off" :
-                isLoaderPulseActive() ? "Pulsing" : "Waiting for pulse");
+        String hopperPhase = "Off";
+        if (lastLoaderRunning) {
+            if (!HOPPER_LOADER_FEED_CYCLE_ENABLED) {
+                hopperPhase = "Continuous";
+            } else {
+                long phase = (System.currentTimeMillis() - loaderFeedStartTime) % HOPPER_LOADER_CYCLE_MS;
+                hopperPhase = phase < HOPPER_LOADER_FORWARD_MS ? "Forward" :
+                        phase < HOPPER_LOADER_FORWARD_MS + HOPPER_LOADER_REVERSE_MS ? "Reverse" : "Stopped";
+            }
+        }
+        telemetry.addData("Hopper feed phase", hopperPhase);
         if (jamRecoveryEnabled) {
             telemetry.addData("Intake Speed", intakeEncoder == null ? "No encoder" :
                     String.format("%.0f ticks/s", intakeEncoder.getVelocity()));
