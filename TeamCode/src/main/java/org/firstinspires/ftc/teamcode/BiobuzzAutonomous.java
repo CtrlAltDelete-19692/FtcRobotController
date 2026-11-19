@@ -16,6 +16,7 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
     private static final long STRAFE_MS_PER_FOOT = 500;  // Starting estimate from Decode; tune on Biobuzz.
     private static final long FLOWER_PULLER_MOVE_MS = 800;
     private static final long FLOWER_COLLECTION_PAUSE_MS = 3000;
+    private static final long BALL_PURGE_MS = 1500;
     private static final double COLLECTION_FORWARD_FEET = 1.4;
     private static final double COLLECTION_FORWARD_SPEED_SCALE = 0.5; // Fraction of normal autonomous power.
     private static final double COLLECTION_FORWARD_TIME_TRIM = 1.0; // Increase if short; decrease if overshooting.
@@ -31,6 +32,7 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
     private Intake intake;
     private FlowerPuller flowerPuller;
     private RotatingLauncher launcher;
+    private BallPurge ballPurge;
     private Limelight3A limelight;
     private boolean isBlue = true;
     private int selectedPipeline = -1;
@@ -55,6 +57,7 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
         flowerPuller = new FlowerPuller(hardwareMap);
         launcher = new RotatingLauncher(hardwareMap, "Pollen", null, null);
         launcher.setFeedIntake(intake);
+        ballPurge = new BallPurge(intake, launcher);
         limelight = hardwareMap.tryGet(Limelight3A.class, "Limelight");
         if (limelight != null) {
             limelight.setPollRateHz(100);
@@ -121,6 +124,12 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
             }
 
             if (!shootBalls(ballCount)) return;
+            ballPurge.setRunning(true);
+            try {
+                if (!waitForDuration(BALL_PURGE_MS, "Clearing remaining balls", false)) return;
+            } finally {
+                ballPurge.setRunning(false);
+            }
 
             if (!flowerPuller.isConfigured()) {
                 telemetry.addLine("FlowerPuller missing; collection skipped.");
@@ -170,6 +179,7 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
             telemetry.addLine("Autonomous route complete");
             telemetry.update();
         } finally {
+            ballPurge.setRunning(false);
             collectionActive = false;
             intake.onLoaderRunning(false);
             intake.spin(false);
@@ -187,7 +197,7 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
         shootingActive = true;
         try {
             if (!waitForShotReady()) {
-                telemetry.addLine("Tag alignment or shooting speed unavailable; feed skipped.");
+                telemetry.addLine("Aim or shooting speed unavailable; feed skipped.");
                 telemetry.update();
                 return false;
             }
@@ -306,7 +316,7 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
     private void updateFeedReadiness() {
         updateShooting();
         long now = System.currentTimeMillis();
-        boolean targetVisible = launcher.isAimingTargetVisible();
+        boolean targetVisible = launcher.isAimingTargetVisible() || launcher.isUsingNoTagFallback();
         double velocity = launcher.launcher.getVelocity();
         boolean speedLow = !Double.isFinite(velocity) || velocity < fixedFeedVelocity * FEED_MIN_SPEED_FRACTION;
         if (targetVisible) feedTargetLostSince = 0;
@@ -343,7 +353,7 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
                 } else {
                     intake.runHopper(false);
                     if (now - lastReady >= SHOOT_READY_TIMEOUT_MS) {
-                        telemetry.addLine("Tag alignment or shooting speed lost; feed stopped.");
+                        telemetry.addLine("Aim or shooting speed lost; feed stopped.");
                         telemetry.update();
                         return false;
                     }
@@ -358,6 +368,8 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
             if (intake.isHopperStalled()) telemetry.addLine("Hopper stalled; feed stopped");
             if (shootingActive) {
                 launcher.addCompetitionTelemetry(telemetry);
+                if (launcher.isUsingNoTagFallback()) telemetry.addData("No tag", "Using %.1f ft shooting speed",
+                        RotatingLauncher.NO_TAG_DISTANCE_FEET);
             } else {
                 telemetry.addData("Flywheel", "%.0f / %.0f ticks/s",
                         launcher.launcher.getVelocity(), launcher.launcherVelocity);

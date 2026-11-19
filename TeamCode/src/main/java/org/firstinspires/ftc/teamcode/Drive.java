@@ -32,7 +32,6 @@ public class Drive {
     private static final double BASE_SPEED_LIMIT = 0.7;
     private static final double AUTO_SPEED = 0.6;
     private static final double SLOW_MODE_FACTOR = 0.2;
-    private static final double TURBO_EXTRA_FACTOR = 0.15;
     private static final double STRAFE_CORRECTION = 1.7;
     private static final double BIOBUZZ_ROTATION_SCALE = 0.85; // Reduce manual chassis rotation by 15%.
 
@@ -142,10 +141,6 @@ public class Drive {
         if (gamepad.left_trigger > CtrlAltDelOpMode.TRIGGER_DEADZONE) {
             speedLimit = BASE_SPEED_LIMIT * SLOW_MODE_FACTOR;
         }
-        // Turbo disabled: RT controls the shooter without increasing chassis speed.
-        // else if (gamepad.right_trigger > CtrlAltDelOpMode.TRIGGER_DEADZONE) {
-        //     speedLimit = Range.clip(BASE_SPEED_LIMIT + gamepad.right_trigger * TURBO_EXTRA_FACTOR, 0.0, 1.0);
-        // }
 
         double strafe = gamepad.left_stick_x;
         double forward = -gamepad.left_stick_y; // Remember, Y stick value is reversed

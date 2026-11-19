@@ -26,7 +26,6 @@ public class Intake {
     public static final long LOADER_PULSE_ON_MS = 200;
     public static final long HOPPER_LOADER_FORWARD_MS = 200;
     public static final long HOPPER_LOADER_OFF_MS = 800; // Loader recovery wait; hopper continues forward.
-    public static final long LOADER_PULSE_DELAY_MS = HOPPER_LOADER_OFF_MS + HOPPER_LOADER_FORWARD_MS;
     public static final boolean HOPPER_LOADER_FEED_CYCLE_ENABLED = true;
     private static final long HOPPER_LOADER_REVERSE_MS = 175; // Overlaps the start of the loader pulse.
     private static final double HOPPER_LOADER_REVERSE_POWER = 0.3;
@@ -49,6 +48,7 @@ public class Intake {
     private long loaderFeedPauseTime;
     private boolean intakeEnabled = true;
     private boolean lastY = false;
+    private boolean purgeRunning;
 
     public Intake(HardwareMap hardwareMap, DcMotor.Direction direction) {
         if (direction == null) {
@@ -75,11 +75,41 @@ public class Intake {
             spin(false);
             return;
         }
+        if (purgeRunning) {
+            applyPurge();
+            return;
+        }
         if (jamRecoveryEnabled) {
             updateJamRecovery();
         } else {
             spin(intakeEnabled);
         }
+    }
+
+    public void setPurgeRunning(boolean running) {
+        if (purgeRunning == running) return;
+        purgeRunning = running;
+        onLoaderRunning(false);
+        reversing = false;
+        forwardStartTime = 0;
+        stallStartTime = 0;
+        hopperForwardStartTime = 0;
+        hopperStallStartTime = 0;
+        hopperPeakSpeed = 0;
+        hopperStalled = false;
+        if (running) applyPurge();
+        else spin(false);
+    }
+
+    public boolean isPurgeRunning() {
+        return purgeRunning;
+    }
+
+    private void applyPurge() {
+        if (CtrlAltDelOpMode.killMotors) return;
+        hopperRequested = false;
+        pickupMotor.setPower(-INTAKE_POWER);
+        if (hopper != null) hopper.setPower(-HOPPER_POWER);
     }
 
     public void enableJamRecovery() {

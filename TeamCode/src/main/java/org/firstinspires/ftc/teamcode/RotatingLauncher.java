@@ -27,13 +27,14 @@ public class RotatingLauncher {
     public DcMotorEx launcher;
 
     private static final double LOADER_IDLE_POWER = 0; // Between 0 and 1
-    private static final double LOADER_POWER = 0.8; // Between 0 and 1d
+    private static final double LOADER_POWER = 0.6; // Between 0 and 1d
     private static final double LOADER_CONTINUOUS_POWER = 0.6;
     private static final int LAUNCH_TIME_MS = 400;
     private static final double LAUNCHER_IDLE_TICKS = 600;  // maintains spin
     public static final double LAUNCHER_BASE_TICKS = 1020;  // Base speed; distance adjustment starts beyond 1.5 ft.
     public static final double LAUNCHER_MINIMUM_TICKS = 600;  // full shooting speed from 2ft
     public static final double TICKS_PER_FOOT = 60;  // ticks to add for each extra foot of distance, based on testing
+    public static final double NO_TAG_DISTANCE_FEET = 3.5;
     public static final int LAUNCHER_TICKS_INCREMENTS = 25;  // When manually adjusting launcher, increment / decrement by this amount
     public static final double LAUNCHER_THRESHOLD = 0.94;  // What percentage of launcher set velocity is required to shoot
     // Camera-space Y points down and Z points forward. Positive mounting pitch looks upward.
@@ -86,6 +87,7 @@ public class RotatingLauncher {
     private boolean sweepAttempted;
     private long sweepStartTime;
     private boolean trackingEnabled;
+    private boolean purgeRunning;
     private TrackingState trackingState = TrackingState.IDLE;
     private int trackedTagId = -1;
     private double trackedTx = Double.NaN;
@@ -199,14 +201,19 @@ public class RotatingLauncher {
         // Resolve aiming first so speed uses the same tag, including on acquisition/loss.
         usingLimelightResults = true;
         speedTarget = selectTarget(result, isBlue, trackingEnabled ? trackedTagId : -1);
+        if (purgeRunning) {
+            applyPurge();
+            updateLed();
+            return;
+        }
         launcher(gamepad, gamepad2);
         loader(gamepad, gamepad2, result, isBlue);
         updateLed();
     }
 
     private void loader(Gamepad gamepad, Gamepad gamepad2, LLResult result, boolean isBlue) {
-        boolean manualFeed = gamepad.b || gamepad2 != null && gamepad2.b;
-        boolean automaticFeed = gamepad.a || gamepad2 != null && gamepad2.a;
+        boolean manualFeed = /* gamepad.b || */ gamepad2 != null && gamepad2.b;
+        boolean automaticFeed = /* gamepad.a || */ gamepad2 != null && gamepad2.a;
         // Once powered, finish this pulse despite readiness fluctuations while A remains held.
         // The shared phase ends this allowance before another pulse can begin.
         boolean finishPulse = isLoaderRunning() && feedIntake != null && feedIntake.isLoaderPulseActive();
@@ -217,7 +224,7 @@ public class RotatingLauncher {
         servoState = ServoState.IDLE;
         runningSequence = false;
         lastLaunch = false;
-        setLoaderRunning(feed && !gamepad.start && (gamepad2 == null || !gamepad2.start));
+        setLoaderRunning(feed);
     }
 
     private boolean hasAllianceTag(LLResult result, boolean isBlue) {
@@ -225,8 +232,8 @@ public class RotatingLauncher {
     }
 
     private boolean isShootTriggerPressed(Gamepad gamepad, Gamepad gamepad2) {
-        return gamepad.right_trigger > CtrlAltDelOpMode.TRIGGER_DEADZONE
-                || gamepad2 != null && gamepad2.right_trigger > CtrlAltDelOpMode.TRIGGER_DEADZONE;
+        return /* gamepad.right_trigger > CtrlAltDelOpMode.TRIGGER_DEADZONE || */
+                gamepad2 != null && gamepad2.right_trigger > CtrlAltDelOpMode.TRIGGER_DEADZONE;
     }
 
     private void turret(Gamepad gamepad, Gamepad gamepad2, LLResult result, boolean isBlue) {
@@ -645,8 +652,6 @@ public class RotatingLauncher {
         // Set launch velocity
         if (spinLauncher) {
             launcherVelocity = LAUNCHER_BASE_TICKS + lvManualAdjustment + distanceAdjustment;
-        } else if (gamepad.left_trigger > CtrlAltDelOpMode.TRIGGER_DEADZONE) {
-            launcherVelocity = (LAUNCHER_BASE_TICKS + lvManualAdjustment + distanceAdjustment) * -1;
         }
 
         launcher.setVelocity(launcherVelocity);
@@ -693,15 +698,19 @@ public class RotatingLauncher {
             readyToLaunch = false;
             return;
         }
-        if (trackingEnabled) updateTracking(result, isBlue);
+        if (trackingEnabled) updateTracking(result, isBlue, false);
         usingLimelightResults = true;
         speedTarget = selectTarget(result, isBlue, trackingEnabled ? trackedTagId : -1);
         lvGoalDistanceAdjustment = getGoalDistanceAdjustment();
         setAutonomousFlywheelVelocity(Double.isFinite(fixedVelocity) ? fixedVelocity
                 : LAUNCHER_BASE_TICKS + Math.max(0, lvGoalDistanceAdjustment));
-        readyToLaunch = trackingEnabled && trackingState == TrackingState.ALIGNED
-                && lvGoalDistanceAdjustment >= 0 && upToSpeed();
+        readyToLaunch = (speedTarget == null || trackingEnabled && trackingState == TrackingState.ALIGNED
+                && lvGoalDistanceAdjustment >= 0) && upToSpeed();
         updateLed();
+    }
+
+    public boolean isUsingNoTagFallback() {
+        return usingLimelightResults && speedTarget == null;
     }
 
     public boolean isAimingTargetVisible() {
@@ -710,6 +719,35 @@ public class RotatingLauncher {
 
     public void setLoaderRunning(boolean running) {
         setLoaderRunning(running, false);
+    }
+
+    public void setPurgeRunning(boolean running) {
+        if (purgeRunning == running) return;
+        purgeRunning = running;
+        if (running) {
+            setLoaderRunning(false);
+            applyPurge();
+        } else {
+            if (loader != null) loader.setPower(0);
+            stopLauncher();
+        }
+    }
+
+    private void applyPurge() {
+        if (CtrlAltDelOpMode.killMotors) {
+            readyToLaunch = false;
+            launcherVelocity = 0;
+            launcher.setVelocity(0);
+            if (loader != null) loader.setPower(0);
+            return;
+        }
+        readyToLaunch = false;
+        launcherVelocity = -LAUNCHER_IDLE_TICKS;
+        launcher.setVelocity(launcherVelocity);
+        if (loader != null) {
+            loader.setDirection(CRServo.Direction.FORWARD);
+            loader.setPower(-LOADER_CONTINUOUS_POWER);
+        }
     }
 
     public void setAutonomousLoaderRunning(boolean running) {
@@ -746,9 +784,10 @@ public class RotatingLauncher {
             // Preserve the wrapper-based path for callers that do not use update(..., result, ...).
             zMeters = aprilTag.z;
         }
-        if (!Double.isFinite(zMeters) || zMeters <= 0) return -1;
+        boolean noTag = usingLimelightResults ? speedTarget == null : aprilTag == null || !aprilTag.tagSeen;
+        if (!noTag && (!Double.isFinite(zMeters) || zMeters <= 0)) return -1;
         // Preserve the existing calibration: add 60 ticks/s per foot beyond 1.5 ft.
-        double extraFeet = Math.max(0, zMeters * 3.28 - 1.5);
+        double extraFeet = Math.max(0, (noTag ? NO_TAG_DISTANCE_FEET : zMeters * 3.28) - 1.5);
         int adjustment = (int) (extraFeet * TICKS_PER_FOOT);
         return adjustment - adjustment % 10; // Reduce speed jitter from small distance changes.
     }
@@ -791,7 +830,7 @@ public class RotatingLauncher {
                     getTagHeightInches(speedTarget), MIN_TARGET_HEIGHT_INCHES);
         }
         if (speedTarget == null) {
-            telemetry.addData("Distance input", "No eligible tag (missing or height-filtered)");
+            telemetry.addData("Distance input", "No eligible tag; using %.1f ft fallback", NO_TAG_DISTANCE_FEET);
         } else if (speedTarget.getTargetPoseCameraSpace() == null
                 || speedTarget.getTargetPoseCameraSpace().getPosition() == null) {
             telemetry.addData("Distance input", "Camera-space pose unavailable");
