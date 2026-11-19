@@ -27,11 +27,11 @@ public class RotatingLauncher {
     public DcMotorEx launcher;
 
     private static final double LOADER_IDLE_POWER = 0; // Between 0 and 1
-    private static final double LOADER_POWER = 0.4; // Between 0 and 1d
+    private static final double LOADER_POWER = 0.8; // Between 0 and 1d
     private static final double LOADER_CONTINUOUS_POWER = 0.6;
     private static final int LAUNCH_TIME_MS = 400;
     private static final double LAUNCHER_IDLE_TICKS = 600;  // maintains spin
-    public static final double LAUNCHER_BASE_TICKS = 1100;  // Base speed; distance adjustment starts beyond 1.5 ft.
+    public static final double LAUNCHER_BASE_TICKS = 1020;  // Base speed; distance adjustment starts beyond 1.5 ft.
     public static final double LAUNCHER_MINIMUM_TICKS = 600;  // full shooting speed from 2ft
     public static final double TICKS_PER_FOOT = 60;  // ticks to add for each extra foot of distance, based on testing
     public static final int LAUNCHER_TICKS_INCREMENTS = 25;  // When manually adjusting launcher, increment / decrement by this amount
@@ -207,9 +207,13 @@ public class RotatingLauncher {
     private void loader(Gamepad gamepad, Gamepad gamepad2, LLResult result, boolean isBlue) {
         boolean manualFeed = gamepad.b || gamepad2 != null && gamepad2.b;
         boolean automaticFeed = gamepad.a || gamepad2 != null && gamepad2.a;
-        boolean feed = manualFeed || automaticFeed && readyToLaunch
+        // Once powered, finish this pulse despite readiness fluctuations while A remains held.
+        // The shared phase ends this allowance before another pulse can begin.
+        boolean finishPulse = isLoaderRunning() && feedIntake != null && feedIntake.isLoaderPulseActive();
+        boolean readyToStart = readyToLaunch
                 && launcher.getVelocity() >= LAUNCHER_MINIMUM_TICKS
                 && hasAllianceTag(result, isBlue);
+        boolean feed = manualFeed || automaticFeed && (readyToStart || finishPulse);
         servoState = ServoState.IDLE;
         runningSequence = false;
         lastLaunch = false;

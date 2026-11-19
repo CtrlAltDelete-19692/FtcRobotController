@@ -21,17 +21,17 @@ public class Intake {
     private static final long HOPPER_SLOWDOWN_CONFIRM_MS = 250;
     private static final long STARTUP_GRACE_MS = 400;
     private static final long STALL_CONFIRM_MS = 150;
-    private static final long REVERSE_BURST_MS = 250;
+    private static final long REVERSE_BURST_MS = 200;
     public static final long HOPPER_LOADER_INITIAL_PAUSE_MS = 600;
-    public static final long LOADER_PULSE_ON_MS = 125;
-    public static final long LOADER_PULSE_DELAY_MS = 900; // Shared loader-off / hopper pause-reverse interval.
-    private static final long HOPPER_LOADER_ON_MS = LOADER_PULSE_ON_MS;
-    private static final long HOPPER_LOADER_OFF_MS = LOADER_PULSE_DELAY_MS;
-    public static final boolean HOPPER_LOADER_FEED_CYCLE_ENABLED = true; // Pause, pulse, and reverse while loading.
-    private static final long HOPPER_LOADER_REVERSE_MS = 75;
-    private static final long HOPPER_LOADER_REVERSE_DELAY_MS = 20;
+    public static final long LOADER_PULSE_ON_MS = 200;
+    public static final long HOPPER_LOADER_FORWARD_MS = 200;
+    public static final long HOPPER_LOADER_OFF_MS = 800; // Loader recovery wait; hopper continues forward.
+    public static final long LOADER_PULSE_DELAY_MS = HOPPER_LOADER_OFF_MS + HOPPER_LOADER_FORWARD_MS;
+    public static final boolean HOPPER_LOADER_FEED_CYCLE_ENABLED = true;
+    private static final long HOPPER_LOADER_REVERSE_MS = 175; // Overlaps the start of the loader pulse.
     private static final double HOPPER_LOADER_REVERSE_POWER = 0.3;
-    public static final long HOPPER_LOADER_CYCLE_MS = HOPPER_LOADER_ON_MS + HOPPER_LOADER_OFF_MS;
+    public static final long HOPPER_LOADER_CYCLE_MS = HOPPER_LOADER_FORWARD_MS
+            + LOADER_PULSE_ON_MS + HOPPER_LOADER_OFF_MS;
     private boolean jamRecoveryEnabled;
     private boolean hopperStallDetectionEnabled = true;
     private boolean reversing;
@@ -136,15 +136,15 @@ public class Intake {
         if (HOPPER_LOADER_FEED_CYCLE_ENABLED && hopperRequested && loaderFeedStartTime != 0) {
             long elapsed = System.currentTimeMillis() - loaderFeedStartTime;
             if (elapsed < HOPPER_LOADER_INITIAL_PAUSE_MS) {
-                reverseHopper = elapsed >= HOPPER_LOADER_REVERSE_DELAY_MS
-                        && elapsed < HOPPER_LOADER_REVERSE_DELAY_MS + HOPPER_LOADER_REVERSE_MS;
                 hopperRequested = false;
             } else {
                 long phase = (elapsed - HOPPER_LOADER_INITIAL_PAUSE_MS) % HOPPER_LOADER_CYCLE_MS;
-                hopperRequested = phase < HOPPER_LOADER_ON_MS;
-                reverseHopper = phase >= HOPPER_LOADER_ON_MS + HOPPER_LOADER_REVERSE_DELAY_MS
-                        && phase < HOPPER_LOADER_ON_MS + HOPPER_LOADER_REVERSE_DELAY_MS
-                        + HOPPER_LOADER_REVERSE_MS;
+                // Advance the remaining balls during the loader's flywheel-recovery wait.
+                hopperRequested = phase < HOPPER_LOADER_FORWARD_MS
+                        || phase >= HOPPER_LOADER_FORWARD_MS + LOADER_PULSE_ON_MS;
+                reverseHopper = phase >= HOPPER_LOADER_FORWARD_MS
+                        && phase < HOPPER_LOADER_FORWARD_MS
+                        + Math.min(HOPPER_LOADER_REVERSE_MS, LOADER_PULSE_ON_MS);
             }
         }
         if (hopper == null) return;
@@ -194,8 +194,10 @@ public class Intake {
         if (CtrlAltDelOpMode.killMotors || !lastLoaderRunning || loaderFeedPauseTime != 0) return false;
         if (!HOPPER_LOADER_FEED_CYCLE_ENABLED) return true;
         long elapsed = System.currentTimeMillis() - loaderFeedStartTime;
-        return loaderFeedStartTime != 0 && elapsed >= HOPPER_LOADER_INITIAL_PAUSE_MS
-                && (elapsed - HOPPER_LOADER_INITIAL_PAUSE_MS) % HOPPER_LOADER_CYCLE_MS < LOADER_PULSE_ON_MS;
+        if (loaderFeedStartTime == 0 || elapsed < HOPPER_LOADER_INITIAL_PAUSE_MS) return false;
+        long phase = (elapsed - HOPPER_LOADER_INITIAL_PAUSE_MS) % HOPPER_LOADER_CYCLE_MS;
+        return phase >= HOPPER_LOADER_FORWARD_MS
+                && phase < HOPPER_LOADER_FORWARD_MS + LOADER_PULSE_ON_MS;
     }
 
     public void updateLoaderFeedTiming(boolean running, boolean preserveOnPause) {

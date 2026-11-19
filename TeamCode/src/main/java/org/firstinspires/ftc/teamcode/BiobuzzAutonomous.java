@@ -34,7 +34,7 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
     private Limelight3A limelight;
     private boolean isBlue = true;
     private int selectedPipeline = -1;
-    private int ballCount = 5;
+    private int ballCount = 8;
     private boolean shootFirst = true;
     private boolean lastCountLeft;
     private boolean lastCountRight;
@@ -77,8 +77,8 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
             lastCountRight = gamepad1.dpad_right;
             if (ballCount < 0) {
                 ballCount = 0;
-            } else if (ballCount > 7) {
-                ballCount = 7;
+            } else if (ballCount > 8) {
+                ballCount = 8;
             }
 
             dashboard.addStatus(isBlue, drive.getDriveMode(), killMotors);
@@ -140,14 +140,14 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
             intake.spin(true);
             if (!collectionForward()) return;
             if (!waitForDuration(FLOWER_COLLECTION_PAUSE_MS, "Collecting pollen", false)) return;
-            if (!backward(1)) return;
+            if (!backward(0.5)) return;
             flowerPuller.setUp();
             if (!waitForDuration(FLOWER_PULLER_MOVE_MS, "Raising FlowerPuller", false)) return;
 
             if (shootFirst) {
-                if (!strafeLeft(2.7) || !backward(1.2)) return;
+                if (!strafeRight(3.8)) return;
             } else {
-                if (!turn(90) || !forward(1.3) || !strafeLeft(1.5)) return;
+                if (!turn(90) || !backward(2.4)) return;
             }
 
             if (false) {
@@ -162,7 +162,7 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
             //if (!shootBalls(ballCount)) return;
 
             if (shootFirst) {
-                if (!turn(180)) return;
+                if (!turn(180) || !backward(0.8)) return;
             }
 
             drive.imu.resetYaw();
@@ -200,7 +200,7 @@ public class BiobuzzAutonomous extends CtrlAltDelOpMode {
             intake.setAutonomousFeedRunning(true);
             long feedDurationMs = Intake.HOPPER_LOADER_FEED_CYCLE_ENABLED
                     ? Intake.HOPPER_LOADER_INITIAL_PAUSE_MS + Intake.HOPPER_LOADER_CYCLE_MS * count
-                            - Intake.LOADER_PULSE_DELAY_MS // Finish after the last pulse, before another cycle can start.
+                            - Intake.HOPPER_LOADER_OFF_MS // Finish after the last loader pulse, before the final rest.
                     : FEED_MS_PER_BALL * count;
             if (!waitForDuration(feedDurationMs, "Feeding " + count + " balls", true)) return false;
             intake.onLoaderRunning(false);
