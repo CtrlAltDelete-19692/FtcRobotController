@@ -14,7 +14,7 @@ public class Intake {
     private final DcMotor hopper;
     private final DcMotorEx hopperEncoder;
 
-    public static final double INTAKE_POWER = 0.5;  // Default power for pickup intake, 0 to 1
+    public static final double INTAKE_POWER = 0.6;  // Default power for pickup intake, 0 to 1
     public static final double HOPPER_POWER = 0.6; // Default power for hopper, 0 to 1
     private static final double STALL_SPEED_TICKS_PER_SECOND = 5;
     public static final double HOPPER_SLOWDOWN_FRACTION = 0.35; // Stop below 35% of this run's peak speed.
@@ -262,6 +262,9 @@ public class Intake {
 
     public void updateHopperStall() {
         if (!hopperStallDetectionEnabled) return;
+
+
+
         // The loader feed cycle handles spacing with a reverse and stop; do not latch off later forward phases.
         if (lastLoaderRunning) return;
         if (hopperEncoder == null || !hopperRequested || hopperStalled) return;

@@ -31,7 +31,7 @@ public class RotatingLauncher {
     private static final double LOADER_CONTINUOUS_POWER = 0.6;
     private static final int LAUNCH_TIME_MS = 400;
     private static final double LAUNCHER_IDLE_TICKS = 600;  // maintains spin
-    public static final double LAUNCHER_BASE_TICKS = 1020;  // Base speed; distance adjustment starts beyond 1.5 ft.
+    public static final double LAUNCHER_BASE_TICKS = 1060;  // Base speed; distance adjustment starts beyond 1.5 ft.
     public static final double LAUNCHER_MINIMUM_TICKS = 600;  // full shooting speed from 2ft
     public static final double TICKS_PER_FOOT = 60;  // ticks to add for each extra foot of distance, based on testing
     public static final double NO_TAG_DISTANCE_FEET = 3.5;
@@ -67,12 +67,12 @@ public class RotatingLauncher {
     private static final long HOME_REVERSE_SEARCH_MS = 1300;
     private static final long HOME_FINE_CLEAR_TIMEOUT_MS = 1500;
     private static final long HOME_FINE_SEARCH_TIMEOUT_MS = 2000;
-    private static final double TRACK_KP = 0.025;
-    private static final double TRACK_MIN_POWER = 0.1;
+    private static final double TRACK_KP = 0.020; // Match Decode's gentler proportional correction.
+    private static final double TRACK_MIN_POWER = 0.03; // Allow gentle corrections near center instead of forcing 10% power.
     private static final double TRACK_MAX_POWER = 0.4;
     private static final double TRACK_DIRECTION = -1.0; // Reverse if positive tx moves farther from zero.
-    private static final double TRACK_DEADBAND_DEGREES = 0.5;
-    private static final double TRACK_RESUME_DEGREES = 1.0; // Restart only outside this wider grace zone.
+    private static final double TRACK_DEADBAND_DEGREES = 1.0;
+    private static final double TRACK_RESUME_DEGREES = 1.5; // Restart only outside this wider grace zone.
     private static final long TARGET_ACQUISITION_SETTLE_MS = 150;
     // Temporary travel bounds until turret position/limit feedback is available.
     // One left/right/return search per aiming session; never sweep indefinitely.
@@ -708,7 +708,9 @@ public class RotatingLauncher {
             readyToLaunch = false;
             return;
         }
-        if (trackingEnabled) updateTracking(result, isBlue, false);
+        // Reacquire an eligible visible tag if the previous lock is no longer available.
+        // This resets aiming only; keep the flywheel running through the handoff.
+        if (trackingEnabled) trackAvailableTag(result, isBlue, false);
         usingLimelightResults = true;
         speedTarget = selectTarget(result, isBlue, trackingEnabled ? trackedTagId : -1);
         lvGoalDistanceAdjustment = getGoalDistanceAdjustment();

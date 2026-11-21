@@ -83,7 +83,7 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
             ballPurge.setRunning(gamepad2.left_trigger > TRIGGER_DEADZONE);
             drive.update(gamepad1, gamepad2);
             intake.update(gamepad1, gamepad2);
-            flowerPuller.update(gamepad2);
+            flowerPuller.update(gamepad1);
             pollenLauncher.update(gamepad1, gamepad2, result, isBlue);
             intake.updateHopperStall();
             //nectarLauncher.update(gamepad1);
