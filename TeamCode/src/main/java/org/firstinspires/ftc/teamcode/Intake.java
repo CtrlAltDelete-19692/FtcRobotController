@@ -27,7 +27,7 @@ public class Intake {
     public static final long LOADER_FORWARD_OVERLAP_MS = 100;
     public static final long HOPPER_LOADER_REVERSE_MS = 125;
     public static final long LOADER_PULSE_ON_MS = 250;
-    public static final long LOADER_RECOVERY_MS = 850; // Loader rests while the hopper feeds the next ball.
+    public static final long LOADER_RECOVERY_MS = 600; // Loader rests while the hopper feeds the next ball.
     public static final long INTAKE_FEED_PAUSE_MS = 200;
     public static final boolean HOPPER_LOADER_FEED_CYCLE_ENABLED = true;
     private static final double HOPPER_LOADER_REVERSE_POWER = 0.3;

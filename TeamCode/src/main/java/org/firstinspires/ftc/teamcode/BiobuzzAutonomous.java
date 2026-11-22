@@ -6,7 +6,7 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 
 @Autonomous(name = "BiobuzzAutonomous")
 public class BiobuzzAutonomous extends CtrlAltDelOpMode {
-    private static final long SHOOT_READY_TIMEOUT_MS = 5000;
+    private static final long SHOOT_READY_TIMEOUT_MS = 4000;
     private static final long FEED_MS_PER_BALL = 1000;
     private static final long FORWARD_MS_PER_FOOT = 440; // Starting estimate from Decode; tune on Biobuzz.
     private static final long STRAFE_MS_PER_FOOT = 500;  // Starting estimate from Decode; tune on Biobuzz.
