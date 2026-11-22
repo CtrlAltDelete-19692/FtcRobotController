@@ -14,14 +14,15 @@ public class Intake {
     private final DcMotor hopper;
     private final DcMotorEx hopperEncoder;
 
-    public static final double INTAKE_POWER = 0.6;  // Default power for pickup intake, 0 to 1
+    public static final double INTAKE_POWER = 0.7;  // Default power for pickup intake, 0 to 1
     public static final double HOPPER_POWER = 0.6; // Default power for hopper, 0 to 1
     private static final double STALL_SPEED_TICKS_PER_SECOND = 5;
     public static final double HOPPER_SLOWDOWN_FRACTION = 0.35; // Stop below 35% of this run's peak speed.
     private static final long HOPPER_SLOWDOWN_CONFIRM_MS = 250;
+    public static final long HOPPER_STALL_RESTART_MS = 2000; // Wait after stopping before retrying.
     private static final long STARTUP_GRACE_MS = 400;
-    private static final long STALL_CONFIRM_MS = 150;
-    private static final long REVERSE_BURST_MS = 200;
+    private static final long STALL_CONFIRM_MS = 300;
+    private static final long REVERSE_BURST_MS = 40;
     public static final long HOPPER_LOADER_FORWARD_MS = 250;
     public static final long LOADER_FORWARD_OVERLAP_MS = 100;
     public static final long HOPPER_LOADER_REVERSE_MS = 125;
@@ -38,6 +39,7 @@ public class Intake {
     private boolean jamRecoveryEnabled;
     private boolean hopperStallDetectionEnabled = true;
     private boolean reversing;
+    private boolean manualReverse;
     private long forwardStartTime;
     private long stallStartTime;
     private long reverseStartTime;
@@ -81,6 +83,13 @@ public class Intake {
         }
         if (purgeRunning) {
             applyPurge();
+            return;
+        }
+        if (manualReverse) {
+            reversing = false;
+            forwardStartTime = 0;
+            stallStartTime = 0;
+            spin(intakeEnabled);
             return;
         }
         if (jamRecoveryEnabled) {
@@ -153,7 +162,15 @@ public class Intake {
     }
 
     public boolean isReversing() {
-        return reversing;
+        return reversing || manualReverse;
+    }
+
+    public void setManualReverse(boolean running) {
+        manualReverse = running;
+    }
+
+    public boolean isManualReversing() {
+        return manualReverse;
     }
 
     public boolean hasHopper() {
@@ -200,7 +217,8 @@ public class Intake {
     }
 
     public void spin(boolean spinLauncher) {
-        pickupMotor.setPower(spinLauncher && !isIntakeFeedPauseActive() ? INTAKE_POWER : 0);
+        pickupMotor.setPower(manualReverse && !CtrlAltDelOpMode.killMotors ? -INTAKE_POWER
+                : spinLauncher && !isIntakeFeedPauseActive() ? INTAKE_POWER : 0);
         runHopper(spinLauncher || hopperLoaderOverride);
     }
 
@@ -263,12 +281,21 @@ public class Intake {
     public void updateHopperStall() {
         if (!hopperStallDetectionEnabled) return;
 
-
+        long now = System.currentTimeMillis();
+        if (hopperStalled) {
+            if (now - hopperStallStartTime >= HOPPER_STALL_RESTART_MS) {
+                hopperStalled = false;
+                hopperStallStartTime = 0;
+                hopperForwardStartTime = 0;
+                hopperPeakSpeed = 0;
+            }
+            // Let the normal motor update restart it before checking speed again.
+            return;
+        }
 
         // The loader feed cycle handles spacing with a reverse and stop; do not latch off later forward phases.
         if (lastLoaderRunning) return;
         if (hopperEncoder == null || !hopperRequested || hopperStalled) return;
-        long now = System.currentTimeMillis();
         if (now - hopperForwardStartTime < STARTUP_GRACE_MS) return;
         double speed = Math.abs(hopperEncoder.getVelocity());
         hopperPeakSpeed = Math.max(hopperPeakSpeed, speed);
@@ -281,6 +308,7 @@ public class Intake {
         if (hopperStallStartTime == 0) hopperStallStartTime = now;
         if (now - hopperStallStartTime >= HOPPER_SLOWDOWN_CONFIRM_MS) {
             hopperStalled = true;
+            hopperStallStartTime = now; // Measure the retry delay from when the motor actually stops.
             hopper.setPower(0);
         }
     }
@@ -341,7 +369,7 @@ public class Intake {
             if (hopperEncoder != null && hopperStallDetectionEnabled) telemetry.addData("Hopper slowdown limit", "%.0f ticks/s",
                     Math.max(STALL_SPEED_TICKS_PER_SECOND, hopperPeakSpeed * HOPPER_SLOWDOWN_FRACTION));
             telemetry.addData("Hopper", !hopperStallDetectionEnabled ? "Jam detection disabled" :
-                    hopperStalled ? "⚠ Stalled; toggle Y or run Loader to restart" : "✅ Clear");
+                    hopperStalled ? "⚠ Stalled; automatic retry after " + HOPPER_STALL_RESTART_MS + " ms" : "✅ Clear");
         }
         String hopperPhase = "Off";
         if (lastLoaderRunning) {

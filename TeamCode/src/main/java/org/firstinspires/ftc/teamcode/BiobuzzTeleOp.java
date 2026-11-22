@@ -67,13 +67,12 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
         flowerPuller.setUp();
         telemetry.clearAll();
         lastYawResetButton = gamepad1.left_bumper;
-        lastDebugButton = gamepad2.x;
+        lastDebugButton = gamepad2.back || gamepad2.share;
 
         drive.imu.resetYaw();
         pollenLauncher.startHoming();
 
         while (opModeIsActive()) {
-            // if (gamepad1.x && !lastKillButton) toggleMotors();
             if (gamepad1.left_bumper && !lastYawResetButton) drive.imu.resetYaw();
             lastYawResetButton = gamepad1.left_bumper;
             updateDebugTelemetry();
@@ -82,6 +81,7 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
             LLResult result = limelight == null ? null : limelight.getLatestResult();
             ballPurge.setRunning(gamepad2.left_trigger > TRIGGER_DEADZONE);
             drive.update(gamepad1, gamepad2);
+            intake.setManualReverse(gamepad1.x || gamepad2.x);
             intake.update(gamepad1, gamepad2);
             flowerPuller.update(gamepad1);
             pollenLauncher.update(gamepad1, gamepad2, result, isBlue);
@@ -111,7 +111,9 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
     private void addCompetitionTelemetry() {
         if (ballPurge.isRunning()) telemetry.addLine("↩ Clearing balls (gamepad 2 LT)");
         String intakeStatus = ballPurge.isRunning() ? "↩ Intake" :
-                killMotors || !intake.isEnabled() ? "❌ Intake (Y)" :
+                killMotors ? "❌ Intake (Y)" :
+                        intake.isManualReversing() ? "↩ Intake (X held)" :
+                !intake.isEnabled() ? "❌ Intake (Y)" :
                         intake.isIntakeFeedPauseActive() ? "⏸ Intake (feed pause)" :
                                 intake.isReversing() ? "↩ Intake (Y)" : "✅ Intake (Y)";
         String flywheelStatus = killMotors ? "❌ Flywheel" :
@@ -130,8 +132,9 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
     }
 
     private void updateDebugTelemetry() {
-        if (gamepad2.x && !lastDebugButton) debugTelemetry = !debugTelemetry;
-        lastDebugButton = gamepad2.x;
+        boolean debugButton = gamepad2.back || gamepad2.share;
+        if (debugButton && !lastDebugButton) debugTelemetry = !debugTelemetry;
+        lastDebugButton = debugButton;
     }
 
     private void changeTeam(boolean blue) {

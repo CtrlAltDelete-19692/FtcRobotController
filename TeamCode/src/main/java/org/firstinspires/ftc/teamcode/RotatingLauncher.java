@@ -34,7 +34,7 @@ public class RotatingLauncher {
     public static final double LAUNCHER_BASE_TICKS = 1060;  // Base speed; distance adjustment starts beyond 1.5 ft.
     public static final double LAUNCHER_MINIMUM_TICKS = 600;  // full shooting speed from 2ft
     public static final double TICKS_PER_FOOT = 60;  // ticks to add for each extra foot of distance, based on testing
-    public static final double NO_TAG_DISTANCE_FEET = 3.5;
+    public static final double NO_TAG_DISTANCE_FEET = 5.8;
     public static final int LAUNCHER_TICKS_INCREMENTS = 25;  // When manually adjusting launcher, increment / decrement by this amount
     public static final double LAUNCHER_THRESHOLD = 0.94;  // What percentage of launcher set velocity is required to shoot
     // Camera-space Y points down and Z points forward. Positive mounting pitch looks upward.
