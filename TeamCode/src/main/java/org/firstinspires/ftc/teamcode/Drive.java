@@ -29,11 +29,14 @@ public class Drive {
     public enum DriveMode { FIELD_CENTRIC, MANUAL }
     DriveMode driveMode = DriveMode.FIELD_CENTRIC; // Default drive mode
     
-    private static final double BASE_SPEED_LIMIT = 0.7;
-    private static final double AUTO_SPEED = 0.6;
-    private static final double SLOW_MODE_FACTOR = 0.2;
-    private static final double STRAFE_CORRECTION = 1.7;
+    private static final double BASE_SPEED_LIMIT = 1;
+    private static final double AUTO_SPEED = 1;
+    private static final double SLOW_MODE_FACTOR = 0.35;
+    private static final double STRAFE_CORRECTION = 1.6;
     private static final double BIOBUZZ_ROTATION_SCALE = 0.85; // Reduce manual chassis rotation by 15%.
+    private static final double DRIVE_ACCEL_RATE = 2.0; // Stick input per second.
+    private static final double DRIVE_DECEL_RATE = 6.0;
+    private static final double MAX_DRIVE_UPDATE_SECONDS = 0.1;
 
     double LFM = 0;
     double LBM = 0;
@@ -45,11 +48,17 @@ public class Drive {
     private boolean resetYawOnRightBumper = true;
     private final boolean chassisAutoAimEnabled;
     private final double manualRotationScale;
+    private final boolean smoothManualDrive;
+    private long lastDriveUpdateNanos;
+    private double smoothStrafe;
+    private double smoothForward;
+    private double smoothRotate;
 
     public Drive(HardwareMap hardwareMap, String driveSystem, boolean includeLimelight) {
         // Biobuzz aims its turret independently; RT must leave chassis rotation under driver control.
         chassisAutoAimEnabled = !driveSystem.equals("Biobuzz");
         manualRotationScale = driveSystem.equals("Biobuzz") ? BIOBUZZ_ROTATION_SCALE : 1.0;
+        smoothManualDrive = driveSystem.equals("Biobuzz");
         if (includeLimelight) {
             limelight = hardwareMap.get(Limelight3A.class, "Limelight");
         }
@@ -91,6 +100,13 @@ public class Drive {
         rightBackMotor = hardwareMap.get(DcMotor.class, "RBM");
         rightBackMotor.setDirection(rightBMD);
         rightBackMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+
+        if (driveSystem.equals("Biobuzz")) {
+            leftFrontMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+            leftBackMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+            rightFrontMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+            rightBackMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        }
     }
 
     public void setupImu(HardwareMap hardwareMap, String driveSystem) {
@@ -154,6 +170,24 @@ public class Drive {
             rotate = Range.clip(rotate, -speedLimit, speedLimit) * manualRotationScale;
         }
 
+        if (smoothManualDrive) {
+            if (CtrlAltDelOpMode.killMotors) {
+                smoothStrafe = smoothForward = smoothRotate = 0;
+                lastDriveUpdateNanos = 0;
+            } else {
+                long now = System.nanoTime();
+                double elapsed = lastDriveUpdateNanos == 0 ? 0.02
+                        : Math.min(MAX_DRIVE_UPDATE_SECONDS, Math.max(0, (now - lastDriveUpdateNanos) / 1e9));
+                lastDriveUpdateNanos = now;
+                smoothStrafe = smoothInput(smoothStrafe, strafe, elapsed);
+                smoothForward = smoothInput(smoothForward, forward, elapsed);
+                smoothRotate = smoothInput(smoothRotate, rotate, elapsed);
+            }
+            strafe = smoothStrafe;
+            forward = smoothForward;
+            rotate = smoothRotate;
+        }
+
         if (driveMode == DriveMode.FIELD_CENTRIC) {
             double headingRad = -imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.RADIANS);
     
@@ -173,6 +207,13 @@ public class Drive {
         }
 
         drive(strafe, forward, rotate, speedLimit);
+    }
+
+    private double smoothInput(double current, double target, double elapsedSeconds) {
+        if (current * target < 0) target = 0; // Slow to a stop before reversing.
+        double rate = Math.abs(target) > Math.abs(current) ? DRIVE_ACCEL_RATE : DRIVE_DECEL_RATE;
+        double maxChange = rate * elapsedSeconds;
+        return current + Range.clip(target - current, -maxChange, maxChange);
     }
 
     public double getAutoRotate(double rotate, int teamTagId) {
