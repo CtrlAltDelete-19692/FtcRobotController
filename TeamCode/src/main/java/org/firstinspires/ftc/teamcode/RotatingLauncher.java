@@ -68,15 +68,15 @@ public class RotatingLauncher {
     private static final long HOME_FINE_CLEAR_TIMEOUT_MS = 1500;
     private static final long HOME_FINE_SEARCH_TIMEOUT_MS = 2000;
     private static final double TRACK_KP = 0.014; // Match Decode's gentler proportional correction.
-    private static final double TRACK_MIN_POWER = 0.02; // Allow gentle corrections near center instead of forcing 10% power.
-    private static final double TRACK_MAX_POWER = 0.2;
+    private static final double TRACK_MIN_POWER = 0.09; // Minimum power to move the geared turret near center.
+    private static final double TRACK_MAX_POWER = 0.20;
     private static final double TRACK_DIRECTION = -1.0; // Reverse if positive tx moves farther from zero.
-    private static final double TRACK_DEADBAND_DEGREES = 1.0;
-    private static final double TRACK_RESUME_DEGREES = 1.5; // Restart only outside this wider grace zone.
+    private static final double TRACK_DEADBAND_DEGREES = 2.0;
+    private static final double TRACK_RESUME_DEGREES = 2.5; // Restart only outside this wider grace zone.
     private static final long TARGET_ACQUISITION_SETTLE_MS = 150;
     // Temporary travel bounds until turret position/limit feedback is available.
     // One left/right/return search per aiming session; never sweep indefinitely.
-    private static final double SWEEP_POWER = 0.25;
+    private static final double SWEEP_POWER = 0.2;
     private static final long SWEEP_LEG_MS = 1200; // Longer, slower legs approximate the previous travel.
     public static final boolean DEFAULT_SWEEP_ENABLED = true;
     public static final boolean PASSIVE_TAG_TRACKING_ENABLED = false;
@@ -140,7 +140,7 @@ public class RotatingLauncher {
         launcher.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         launcher.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
         launcher.setVelocity(0);
-        PIDFCoefficients newCoeffs = new PIDFCoefficients(14  , 0, 0.8, 18);
+        PIDFCoefficients newCoeffs = new PIDFCoefficients(14  , 0, 0.8, 16.5);
         launcher.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, newCoeffs);
 
         turretServo = hardwareMap.tryGet(CRServo.class, label + "RotatingServo");
