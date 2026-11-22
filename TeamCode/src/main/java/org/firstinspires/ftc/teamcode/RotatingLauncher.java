@@ -40,7 +40,7 @@ public class RotatingLauncher {
     // Camera-space Y points down and Z points forward. Positive mounting pitch looks upward.
     public static final double CAMERA_HEIGHT_INCHES = 14.0;
     public static final double CAMERA_UPWARD_PITCH_DEGREES = Math.toDegrees(Math.atan2(17.0, 23.0)); // 36.47 degrees; lens normal to 23 mm down / 17 mm deep chamfer.
-    public static final double MIN_TARGET_HEIGHT_INCHES = 42.0; // Reject at or below this floor height.
+    public static final double MIN_TARGET_HEIGHT_INCHES = 36.0; // Reject at or below this floor height.
     private static final double HEIGHT_COMPARISON_EPSILON_INCHES = 1e-6; // Absorb rounding at the cutoff.
 
     public double launcherVelocity = 0;
@@ -59,7 +59,7 @@ public class RotatingLauncher {
     private static final double LED_BLUE_POSITION = 0.611;
     private static final double LED_GREEN_POSITION = 0.50;
     private static final double LED_OFF_POSITION = 0.0;
-    private static final long LED_BLINK_PERIOD_MS = 1000;
+    private static final long LED_BLINK_PERIOD_MS = 300;
     private static final double HOME_POWER = 0.35;
     private static final double HOME_FINE_POWER = 0.10;
     private static final long HOME_CLEAR_TIMEOUT_MS = 500;
@@ -67,18 +67,19 @@ public class RotatingLauncher {
     private static final long HOME_REVERSE_SEARCH_MS = 1300;
     private static final long HOME_FINE_CLEAR_TIMEOUT_MS = 1500;
     private static final long HOME_FINE_SEARCH_TIMEOUT_MS = 2000;
-    private static final double TRACK_KP = 0.020; // Match Decode's gentler proportional correction.
-    private static final double TRACK_MIN_POWER = 0.03; // Allow gentle corrections near center instead of forcing 10% power.
-    private static final double TRACK_MAX_POWER = 0.4;
+    private static final double TRACK_KP = 0.014; // Match Decode's gentler proportional correction.
+    private static final double TRACK_MIN_POWER = 0.02; // Allow gentle corrections near center instead of forcing 10% power.
+    private static final double TRACK_MAX_POWER = 0.2;
     private static final double TRACK_DIRECTION = -1.0; // Reverse if positive tx moves farther from zero.
     private static final double TRACK_DEADBAND_DEGREES = 1.0;
     private static final double TRACK_RESUME_DEGREES = 1.5; // Restart only outside this wider grace zone.
     private static final long TARGET_ACQUISITION_SETTLE_MS = 150;
     // Temporary travel bounds until turret position/limit feedback is available.
     // One left/right/return search per aiming session; never sweep indefinitely.
-    private static final double SWEEP_POWER = 0.10;
-    private static final long SWEEP_LEG_MS = 1000; // Longer, slower legs approximate the previous travel.
+    private static final double SWEEP_POWER = 0.25;
+    private static final long SWEEP_LEG_MS = 1200; // Longer, slower legs approximate the previous travel.
     public static final boolean DEFAULT_SWEEP_ENABLED = true;
+    public static final boolean PASSIVE_TAG_TRACKING_ENABLED = false;
     private HomeState homeState = HomeState.IDLE;
     private long homeStageStartTime;
     private double fineApproachDirection;
@@ -208,20 +209,17 @@ public class RotatingLauncher {
             return;
         }
         launcher(gamepad, gamepad2);
-        loader(gamepad, gamepad2, result, isBlue);
+        loader(gamepad, gamepad2);
         updateLed();
     }
 
-    private void loader(Gamepad gamepad, Gamepad gamepad2, LLResult result, boolean isBlue) {
+    private void loader(Gamepad gamepad, Gamepad gamepad2) {
         boolean manualFeed = /* gamepad.b || */ gamepad2 != null && gamepad2.b;
         boolean automaticFeed = /* gamepad.a || */ gamepad2 != null && gamepad2.a;
-        boolean readyToStart = readyToLaunch
-                && launcher.getVelocity() >= LAUNCHER_MINIMUM_TICKS
-                && hasAllianceTag(result, isBlue);
-        // Once A starts feeding, keep it running through brief speed or tag losses.
+        // Once A starts feeding, keep it running through speed or tag losses while A and RT are held.
         if (!automaticFeed || !isShootTriggerPressed(gamepad, gamepad2) || !trackingEnabled) {
             automaticFeedLatched = false;
-        } else if (readyToStart) {
+        } else if (canStartAutomaticFeed()) {
             automaticFeedLatched = true;
         }
         boolean feed = manualFeed || automaticFeedLatched;
@@ -229,10 +227,6 @@ public class RotatingLauncher {
         runningSequence = false;
         lastLaunch = false;
         setLoaderRunning(feed);
-    }
-
-    private boolean hasAllianceTag(LLResult result, boolean isBlue) {
-        return selectTarget(result, isBlue, -1) != null;
     }
 
     private boolean isShootTriggerPressed(Gamepad gamepad, Gamepad gamepad2) {
@@ -265,9 +259,13 @@ public class RotatingLauncher {
             updateHoming();
         } else {
             boolean shootTrigger = isShootTriggerPressed(gamepad, gamepad2);
-            if (shootTrigger && !lastSpinTrigger
-                    && selectTarget(result, isBlue, trackedTagId) == null) startAiming();
-            trackAvailableTag(result, isBlue, shootTrigger);
+            if (!PASSIVE_TAG_TRACKING_ENABLED && !shootTrigger) {
+                stopTurret();
+            } else {
+                if (shootTrigger && !lastSpinTrigger
+                        && selectTarget(result, isBlue, trackedTagId) == null) startAiming();
+                trackAvailableTag(result, isBlue, shootTrigger);
+            }
         }
     }
 
@@ -291,7 +289,8 @@ public class RotatingLauncher {
         if (CtrlAltDelOpMode.killMotors || turretServo == null) {
             stopTurret();
         } else if (!isHoming()) {
-            trackAvailableTag(result, isBlue, false);
+            if (PASSIVE_TAG_TRACKING_ENABLED) trackAvailableTag(result, isBlue, false);
+            else stopTurret();
         }
         usingLimelightResults = true;
         speedTarget = selectTarget(result, isBlue, trackingEnabled ? trackedTagId : -1);
@@ -435,13 +434,13 @@ public class RotatingLauncher {
                 || trackingState == TrackingState.SETTLING;
     }
 
-    private boolean isLedReady() {
-        return speedTarget != null && !CtrlAltDelOpMode.killMotors
-                && launcherVelocity > LAUNCHER_IDLE_TICKS && upToSpeed();
+    private boolean canStartAutomaticFeed() {
+        return readyToLaunch && trackingEnabled && speedTarget != null
+                && !CtrlAltDelOpMode.killMotors && launcher.getVelocity() >= LAUNCHER_MINIMUM_TICKS;
     }
 
     private double getLedPosition() {
-        if (isLedReady()) return LED_GREEN_POSITION;
+        if (canStartAutomaticFeed()) return LED_GREEN_POSITION;
         boolean ramping = !CtrlAltDelOpMode.killMotors && launcherVelocity > LAUNCHER_IDLE_TICKS
                 && !upToSpeed();
         double color = ramping ? LED_BLUE_POSITION : LED_RED_POSITION;
@@ -861,7 +860,7 @@ public class RotatingLauncher {
             telemetry.addData("Tracked tag ID", trackedTagId);
             telemetry.addData("Last tracking tx", "%.1f deg", trackedTx);
         }
-        telemetry.addData("LED", led == null ? "Not configured" : isLedReady() ? "Green" :
+        telemetry.addData("LED", led == null ? "Not configured" : canStartAutomaticFeed() ? "Green" :
                 (speedTarget != null ? "Flashing " : "")
                         + (!CtrlAltDelOpMode.killMotors && launcherVelocity > LAUNCHER_IDLE_TICKS
                         && !upToSpeed() ? "blue" : "red"));
