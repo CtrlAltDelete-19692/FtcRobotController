@@ -32,7 +32,7 @@ public class DcMotorAndServo extends CtrlAltDelOpMode {
     @Override
     public void runOpMode() {
 
-        drive = new Drive(hardwareMap, "King Bob", false);
+        drive = new Drive(hardwareMap, Drive.RobotProfile.STANDARD, false);
 
         motor = hardwareMap.get(DcMotor.class, "motor");
 

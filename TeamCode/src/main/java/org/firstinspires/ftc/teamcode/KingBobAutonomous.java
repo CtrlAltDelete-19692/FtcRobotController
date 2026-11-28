@@ -16,7 +16,7 @@ public class KingBobAutonomous extends CtrlAltDelOpMode {
     @Override
     public void runOpMode() throws InterruptedException {
 
-        drive = new Drive(hardwareMap, "King Bob", false);
+        drive = new Drive(hardwareMap, Drive.RobotProfile.STANDARD, false);
         drive.setDriveMode(Drive.DriveMode.FIELD_CENTRIC);
         TelemetryDashboard dashboard = new TelemetryDashboard(telemetry);
 

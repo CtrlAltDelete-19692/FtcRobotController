@@ -105,7 +105,7 @@ public class DecodeAutonomous extends CtrlAltDelOpMode {
             teamTagId = 24;
         }
 
-        drive = new Drive(hardwareMap, "", true);
+        drive = new Drive(hardwareMap, Drive.RobotProfile.STANDARD, true);
         autoDrive = new AutonomousDriveCommands(this, drive);
         AprilTag aprilTag = new AprilTag(hardwareMap);
         aprilTag.pipelineSwitch(pipeline);
@@ -150,7 +150,7 @@ public class DecodeAutonomous extends CtrlAltDelOpMode {
         rotateLeft(300, direction);
 
         spinUpLauncher(4, 4000);
-        intake.spin(true);
+        intake.setCollectionRunning(true);
 
         centerOnTag(1000);
         pulseLoader(5);
@@ -181,7 +181,7 @@ public class DecodeAutonomous extends CtrlAltDelOpMode {
         turnToHeading(0);
 
         stopLauncher();
-        intake.spin(false);
+        intake.setCollectionRunning(false);
     }
 
     private void back(int direction) {
@@ -192,7 +192,7 @@ public class DecodeAutonomous extends CtrlAltDelOpMode {
         //rotateLeft(400, direction);
 
         spinUpLauncher(10, 5000);
-        intake.spin(true);
+        intake.setCollectionRunning(true);
 
         centerOnTag(1000);
         pulseLoader(5);
@@ -229,23 +229,23 @@ public class DecodeAutonomous extends CtrlAltDelOpMode {
         driveForward(FOOT_MS * 1.5, direction);
 
         stopLauncher();
-        intake.spin(false);
+        intake.setCollectionRunning(false);
     }
 
     private void frontOdo() {
         takeCloseShots(4);
 //
 //                goToPose(24, -30);
-//                intake.spin(true);
+//                intake.setCollectionRunning(true);
 //                goToPose(24, 0);
-//                intake.spin(false);
+//                intake.setCollectionRunning(false);
 //
 //                takeCloseShots(4);
 
 //                goToPose(48, -30);
-//                intake.spin(true);
+//                intake.setCollectionRunning(true);
 //                goToPose(48, 0);
-//                intake.spin(false);
+//                intake.setCollectionRunning(false);
 //
 //                takeCloseShots(4);
     }
@@ -254,9 +254,9 @@ public class DecodeAutonomous extends CtrlAltDelOpMode {
         takeFarShots(4);
 
         goToPose(-24, 0);
-        intake.spin(true);
+        intake.setCollectionRunning(true);
         goToPose(-24, 36);
-        intake.spin(false);
+        intake.setCollectionRunning(false);
 
         takeFarShots(4);
     }
@@ -265,18 +265,18 @@ public class DecodeAutonomous extends CtrlAltDelOpMode {
         goToPose(10, -30);
         turnToHeading(-40);
         spinUpLauncher(3, 5000);
-        intake.spin(true);
+        intake.setCollectionRunning(true);
         pulseLoader(shotCount);
-        intake.spin(false);
+        intake.setCollectionRunning(false);
         turnToHeading(0);
         stopLauncher();
     }
     private void takeFarShots(int shotCount) {
         turnToHeading(-30);
         spinUpLauncher(3, 5000);
-        intake.spin(true);
+        intake.setCollectionRunning(true);
         pulseLoader(shotCount);
-        intake.spin(false);
+        intake.setCollectionRunning(false);
         turnToHeading(0);
         stopLauncher();
     }

@@ -27,7 +27,8 @@ public class DecodeTeleOp extends CtrlAltDelOpMode {
     public void runOpMode() throws InterruptedException {
         telemetry.speak("Good luck!");
 
-        drive = new Drive(hardwareMap, "", true);
+        drive = new Drive(hardwareMap, Drive.RobotProfile.STANDARD, true);
+        drive.setSingleControllerAutoAimEnabled(oneController);
         aprilTag = new AprilTag(hardwareMap);
         aprilTag.pipelineSwitch(pipeline);
         launcher = new Launcher(hardwareMap, aprilTag, telemetry);

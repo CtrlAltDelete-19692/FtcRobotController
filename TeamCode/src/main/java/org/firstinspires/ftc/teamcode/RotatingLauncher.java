@@ -5,7 +5,6 @@ import com.qualcomm.hardware.limelightvision.LLResultTypes;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
-import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
@@ -19,47 +18,37 @@ import org.firstinspires.ftc.robotcore.external.navigation.Position;
 
 public class RotatingLauncher {
     private final String label;
-    public AprilTag aprilTag;
-    public Telemetry telemetry;
     public CRServo loader;
     private Intake feedIntake;
 
     public DcMotorEx launcher;
 
-    private static final double LOADER_IDLE_POWER = 0; // Between 0 and 1
-    private static final double LOADER_POWER = 0.6; // Between 0 and 1d
-    private static final double LOADER_CONTINUOUS_POWER = 0.6;
-    private static final int LAUNCH_TIME_MS = 400;
-    private static final double LAUNCHER_IDLE_TICKS = 600;  // maintains spin
-    public static final double LAUNCHER_BASE_TICKS = 1060;  // Base speed; distance adjustment starts beyond 1.5 ft.
-    public static final double LAUNCHER_MINIMUM_TICKS = 600;  // full shooting speed from 2ft
+    private static final double LOADER_CONTINUOUS_POWER = 0.8;
+    private static final double LAUNCHER_P = 200;
+    private static final double LAUNCHER_F = 21;
+    private static final double LAUNCHER_IDLE_TICKS = 460;  // maintains spin
+    public static final double LAUNCHER_BASE_TICKS = 660;  // Base speed; distance adjustment starts beyond 1.5 ft.
+    public static final double LAUNCHER_MINIMUM_TICKS = 460;  // full shooting speed from 2ft
     public static final double TICKS_PER_FOOT = 60;  // ticks to add for each extra foot of distance, based on testing
     public static final double NO_TAG_DISTANCE_FEET = 5.8;
     public static final int LAUNCHER_TICKS_INCREMENTS = 25;  // When manually adjusting launcher, increment / decrement by this amount
-    public static final double LAUNCHER_THRESHOLD = 0.94;  // What percentage of launcher set velocity is required to shoot
+    public static final double LAUNCHER_THRESHOLD = 0.96;  // What percentage of launcher set velocity is required to shoot
     // Camera-space Y points down and Z points forward. Positive mounting pitch looks upward.
     public static final double CAMERA_HEIGHT_INCHES = 14.0;
     public static final double CAMERA_UPWARD_PITCH_DEGREES = Math.toDegrees(Math.atan2(17.0, 23.0)); // 36.47 degrees; lens normal to 23 mm down / 17 mm deep chamfer.
-    public static final double MIN_TARGET_HEIGHT_INCHES = 36.0; // Reject at or below this floor height.
+    public static final double MIN_TARGET_HEIGHT_INCHES = 44; // Reject at or below this floor height.
     private static final double HEIGHT_COMPARISON_EPSILON_INCHES = 1e-6; // Absorb rounding at the cutoff.
 
     public double launcherVelocity = 0;
     public int lvManualAdjustment = 0;
     public int lvGoalDistanceAdjustment = 0;
     public boolean readyToLaunch = false;
-    boolean lastLaunch = false;
-    boolean runningSequence = false;
 
     // Turret
     public CRServo turretServo;
     private TouchSensor centerSwitch;
     private Servo led;
     public static final double TURRET_SERVO_POWER = 1.0;
-    private static final double LED_RED_POSITION = 0.28;
-    private static final double LED_BLUE_POSITION = 0.611;
-    private static final double LED_GREEN_POSITION = 0.50;
-    private static final double LED_OFF_POSITION = 0.0;
-    private static final long LED_BLINK_PERIOD_MS = 300;
     private static final double HOME_POWER = 0.35;
     private static final double HOME_FINE_POWER = 0.10;
     private static final long HOME_CLEAR_TIMEOUT_MS = 500;
@@ -96,7 +85,6 @@ public class RotatingLauncher {
     private boolean alignmentHeld;
     private long acquisitionSettleUntil;
     private LLResultTypes.FiducialResult speedTarget;
-    private boolean usingLimelightResults;
 
     private enum HomeState {
         IDLE, CLEARING, SEARCHING_FIRST, SEARCHING_REVERSE,
@@ -107,25 +95,13 @@ public class RotatingLauncher {
         IDLE, TRACKING, ALIGNED, SETTLING, NO_TAG, LOST, SEARCHING, SEARCH_EXHAUSTED, CANCELED
     }
 
-    long actionStartTime = 0;
     private boolean lastLeftBumper = false;
     private boolean lastRightBumper = false;
     private boolean lastSpinTrigger;
 
-    enum ServoState {
-        IDLE,
-        GOING_OUT,
-        RETURNING
-    }
-
-    ServoState servoState = ServoState.IDLE;
-
-    public RotatingLauncher(HardwareMap hardwareMap, String label, AprilTag aprilTag,
-                            Telemetry telemetry) {
+    public RotatingLauncher(HardwareMap hardwareMap, String label) {
         this.label = label;
         setup(hardwareMap);
-        this.aprilTag = aprilTag;
-        this.telemetry = telemetry;
     }
 
     private void setup(HardwareMap hardwareMap) {
@@ -134,14 +110,13 @@ public class RotatingLauncher {
             loader.setDirection(CRServo.Direction.FORWARD);
             loader.setPower(0);
         }
-
         launcher = hardwareMap.get(DcMotorEx.class, label + "Flywheel");
         launcher.setDirection(DcMotor.Direction.REVERSE);
         launcher.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         launcher.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
         launcher.setVelocity(0);
-        PIDFCoefficients newCoeffs = new PIDFCoefficients(14  , 0, 0.8, 15.5);
-        launcher.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, newCoeffs);
+        launcher.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER,
+                new PIDFCoefficients(LAUNCHER_P, 0, 0, LAUNCHER_F));
 
         turretServo = hardwareMap.tryGet(CRServo.class, label + "RotatingServo");
         if (turretServo != null) {
@@ -152,14 +127,6 @@ public class RotatingLauncher {
 
         led = hardwareMap.tryGet(Servo.class, label + "Led");
         updateLed();
-    }
-
-    public void update(Gamepad gamepad) {
-        update(gamepad, null, null, false);
-    }
-
-    public void update(Gamepad gamepad, LLResult result, boolean isBlue) {
-        update(gamepad, null, result, isBlue);
     }
 
     public void setSweepEnabled(boolean enabled) {
@@ -189,19 +156,12 @@ public class RotatingLauncher {
     }
 
     public void update(Gamepad gamepad, Gamepad gamepad2, LLResult result, boolean isBlue) {
-        // Do not move the loader or launcher motors unless we are on the ground!
-        //boolean onGround = leftViperSlideMotor.getCurrentPosition() <= 30 && rightViperSlideMotor.getCurrentPosition() <= 30;
-        //if (! onGround) {
-        //    return;
-        //}
-
         if (gamepad.dpad_up && !lastHomeButton) {
             startHoming();
         }
         lastHomeButton = gamepad.dpad_up;
         turret(gamepad, gamepad2, result, isBlue);
         // Resolve aiming first so speed uses the same tag, including on acquisition/loss.
-        usingLimelightResults = true;
         speedTarget = selectTarget(result, isBlue, trackingEnabled ? trackedTagId : -1);
         if (purgeRunning) {
             applyPurge();
@@ -223,9 +183,6 @@ public class RotatingLauncher {
             automaticFeedLatched = true;
         }
         boolean feed = manualFeed || automaticFeedLatched;
-        servoState = ServoState.IDLE;
-        runningSequence = false;
-        lastLaunch = false;
         setLoaderRunning(feed);
     }
 
@@ -292,32 +249,26 @@ public class RotatingLauncher {
             if (PASSIVE_TAG_TRACKING_ENABLED) trackAvailableTag(result, isBlue, false);
             else stopTurret();
         }
-        usingLimelightResults = true;
         speedTarget = selectTarget(result, isBlue, trackingEnabled ? trackedTagId : -1);
         updateLed();
     }
 
     // With a locked ID, never substitute another tag when that target disappears.
-    // Otherwise prefer the inner tags, breaking ties by camera horizontal center.
+    // Only use inner hive tags, breaking ties by camera horizontal center.
     private LLResultTypes.FiducialResult selectTarget(LLResult result, boolean isBlue, int targetId) {
         if (result == null || !result.isValid() || result.getFiducialResults() == null) return null;
         LLResultTypes.FiducialResult selected = null;
         double closestTx = Double.POSITIVE_INFINITY;
-        boolean selectedPreferred = false;
         for (LLResultTypes.FiducialResult tag : result.getFiducialResults()) {
             int id = tag.getFiducialId();
             double tx = tag.getTargetXDegrees();
-            if ((isBlue ? id < 38 || id > 45 : id < 30 || id > 37)
-                    || !Double.isFinite(tx) || !isTagAboveMinimumHeight(tag)) continue;
+            if (getTagRejectionReason(tag, isBlue) != null) continue;
             if (targetId != -1) {
                 if (id == targetId) return tag;
             } else {
-                boolean preferred = isPreferredTag(id, isBlue);
-                if (selected == null || (preferred && !selectedPreferred)
-                        || (preferred == selectedPreferred && Math.abs(tx) < closestTx)) {
+                if (selected == null || Math.abs(tx) < closestTx) {
                     closestTx = Math.abs(tx);
                     selected = tag;
-                    selectedPreferred = preferred;
                 }
             }
         }
@@ -327,6 +278,13 @@ public class RotatingLauncher {
     private boolean isPreferredTag(int id, boolean isBlue) {
         return isBlue ? id == 39 || id == 40 || id == 43 || id == 44
                 : id == 31 || id == 32 || id == 35 || id == 36;
+    }
+
+    public String getTagRejectionReason(LLResultTypes.FiducialResult tag, boolean isBlue) {
+        if (!isPreferredTag(tag.getFiducialId(), isBlue)) return "Wrong team or outer tag";
+        if (!Double.isFinite(tag.getTargetXDegrees())) return "Invalid tx";
+        if (!isTagAboveMinimumHeight(tag)) return "Height below cutoff or unavailable";
+        return null;
     }
 
     public double getTagHeightInches(LLResultTypes.FiducialResult tag) {
@@ -440,13 +398,13 @@ public class RotatingLauncher {
     }
 
     private double getLedPosition() {
-        if (canStartAutomaticFeed()) return LED_GREEN_POSITION;
+        if (canStartAutomaticFeed()) return TurretLedSettings.GREEN_POSITION;
         boolean ramping = !CtrlAltDelOpMode.killMotors && launcherVelocity > LAUNCHER_IDLE_TICKS
                 && !upToSpeed();
-        double color = ramping ? LED_BLUE_POSITION : LED_RED_POSITION;
+        double color = ramping ? TurretLedSettings.BLUE_POSITION : TurretLedSettings.RED_POSITION;
         boolean blinkOff = speedTarget != null
-                && System.currentTimeMillis() % LED_BLINK_PERIOD_MS >= LED_BLINK_PERIOD_MS / 2;
-        return blinkOff ? LED_OFF_POSITION : color;
+                && System.currentTimeMillis() % TurretLedSettings.BLINK_PERIOD_MS >= TurretLedSettings.BLINK_PERIOD_MS / 2;
+        return blinkOff ? TurretLedSettings.OFF_POSITION : color;
     }
 
     private void updateLed() {
@@ -562,72 +520,10 @@ public class RotatingLauncher {
         updateLed();
     }
 
-    // Call this from autonomous when you want to launch
-    public void triggerLoader() {
-        runLoader(true);
-    }
-
-    public void updateLoader() {
-        runLoader(false);
-    }
-
-    // Shared loader sequence logic
-    private void runLoader(boolean executeLaunch) {
-        if (CtrlAltDelOpMode.killMotors) {
-            if (loader != null) loader.setPower(0);
-            servoState = ServoState.IDLE;
-            runningSequence = false;
-            lastLaunch = executeLaunch;
-            return;
-        }
-
-        if (loader == null) return;
-
-        int launchTimeMs = LAUNCH_TIME_MS;
-
-        if (executeLaunch && !lastLaunch && !runningSequence) {
-            runningSequence = true;
-            servoState = ServoState.GOING_OUT;
-            actionStartTime = System.currentTimeMillis();
-        }
-
-        lastLaunch = executeLaunch;
-
-        long elapsed = System.currentTimeMillis() - actionStartTime;
-
-        switch (servoState) {
-            case IDLE:
-                loader.setPower(LOADER_IDLE_POWER);
-                loader.setDirection(CRServo.Direction.REVERSE);
-                break;
-
-            case GOING_OUT:
-                loader.setPower(LOADER_POWER);
-                loader.setDirection(CRServo.Direction.FORWARD);
-
-                if (elapsed >= launchTimeMs) {
-                    servoState = ServoState.RETURNING;
-                    actionStartTime = System.currentTimeMillis();
-                }
-                break;
-
-            case RETURNING:
-                loader.setPower(LOADER_POWER);
-                loader.setDirection(CRServo.Direction.REVERSE);
-
-                if (elapsed >= launchTimeMs) {
-                    servoState = ServoState.IDLE;
-                    runningSequence = false;
-                }
-                break;
-        }
-    }
-
     private void launcher(Gamepad gamepad, Gamepad gamepad2) {
         boolean spinLauncher = isShootTriggerPressed(gamepad, gamepad2);
         lastSpinTrigger = spinLauncher;
 
-        //if (leftViperSlideMotor.getCurrentPosition() > 30 || rightViperSlideMotor.getCurrentPosition() > 30 || killMotors) {
         if (CtrlAltDelOpMode.killMotors) {
             readyToLaunch = false;
             launcherVelocity = 0;
@@ -642,15 +538,9 @@ public class RotatingLauncher {
         boolean rightBumper = gamepad2 != null && gamepad2.right_bumper;
         if (leftBumper && !lastLeftBumper) {
             lvManualAdjustment -= LAUNCHER_TICKS_INCREMENTS;
-            if (telemetry != null) {
-                telemetry.speak("Slower, " + lvManualAdjustment + " ticks");
-            }
         }
         if (rightBumper && !lastRightBumper) {
             lvManualAdjustment += LAUNCHER_TICKS_INCREMENTS;
-            if (telemetry != null) {
-                telemetry.speak("Faster, " + lvManualAdjustment + " ticks");
-            }
         }
         lastLeftBumper = leftBumper;
         lastRightBumper = rightBumper;
@@ -710,7 +600,6 @@ public class RotatingLauncher {
         // Reacquire an eligible visible tag if the previous lock is no longer available.
         // This resets aiming only; keep the flywheel running through the handoff.
         if (trackingEnabled) trackAvailableTag(result, isBlue, false);
-        usingLimelightResults = true;
         speedTarget = selectTarget(result, isBlue, trackingEnabled ? trackedTagId : -1);
         lvGoalDistanceAdjustment = getGoalDistanceAdjustment();
         setAutonomousFlywheelVelocity(Double.isFinite(fixedVelocity) ? fixedVelocity
@@ -721,7 +610,7 @@ public class RotatingLauncher {
     }
 
     public boolean isUsingNoTagFallback() {
-        return usingLimelightResults && speedTarget == null;
+        return speedTarget == null;
     }
 
     public boolean isAimingTargetVisible() {
@@ -730,10 +619,10 @@ public class RotatingLauncher {
 
     public void setLoaderRunning(boolean running) {
         boolean requested = running && loader != null && !CtrlAltDelOpMode.killMotors;
-        if (feedIntake != null) feedIntake.onLoaderRunning(requested);
+        boolean pulseActive = feedIntake == null || feedIntake.updateLoaderFeed(requested,
+                launcherVelocity <= LAUNCHER_IDLE_TICKS || upToSpeed());
         if (loader == null) return;
         loader.setDirection(CRServo.Direction.FORWARD);
-        boolean pulseActive = feedIntake == null || feedIntake.isLoaderPulseActive();
         loader.setPower(requested && pulseActive ? LOADER_CONTINUOUS_POWER : 0);
     }
 
@@ -767,32 +656,14 @@ public class RotatingLauncher {
         }
     }
 
-    public void setAutonomousLoaderRunning(boolean running) {
-        setLoaderRunning(running);
-    }
-
-    public void autoLauncher(int ticksPerSecond) {
-        int tagAdjustment = getGoalDistanceAdjustment();
-        if (tagAdjustment == -1) {
-            tagAdjustment = ticksPerSecond;
-        }
-        launcherVelocity = LAUNCHER_BASE_TICKS + tagAdjustment;
-        launcher.setVelocity(launcherVelocity);
-    }
-
     // Automatic launch velocity adjustment based on tag distance
-    public int getGoalDistanceAdjustment() {
+    private int getGoalDistanceAdjustment() {
         double zMeters = Double.NaN;
-        if (usingLimelightResults) {
-            if (speedTarget != null && speedTarget.getTargetPoseCameraSpace() != null
-                    && speedTarget.getTargetPoseCameraSpace().getPosition() != null) {
-                zMeters = speedTarget.getTargetPoseCameraSpace().getPosition().z;
-            }
-        } else if (aprilTag != null && aprilTag.tagSeen) {
-            // Preserve the wrapper-based path for callers that do not use update(..., result, ...).
-            zMeters = aprilTag.z;
+        if (speedTarget != null && speedTarget.getTargetPoseCameraSpace() != null
+                && speedTarget.getTargetPoseCameraSpace().getPosition() != null) {
+            zMeters = speedTarget.getTargetPoseCameraSpace().getPosition().z;
         }
-        boolean noTag = usingLimelightResults ? speedTarget == null : aprilTag == null || !aprilTag.tagSeen;
+        boolean noTag = speedTarget == null;
         if (!noTag && (!Double.isFinite(zMeters) || zMeters <= 0)) return -1;
         // Preserve the existing calibration: add 60 ticks/s per foot beyond 1.5 ft.
         double extraFeet = Math.max(0, (noTag ? NO_TAG_DISTANCE_FEET : zMeters * 3.28) - 1.5);

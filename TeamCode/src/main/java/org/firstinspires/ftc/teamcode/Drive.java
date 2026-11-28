@@ -4,7 +4,6 @@ import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.hardware.DcMotor;
-import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.IMU;
@@ -27,6 +26,7 @@ public class Drive {
     public Limelight3A limelight;
 
     public enum DriveMode { FIELD_CENTRIC, MANUAL }
+    public enum RobotProfile { BIOBUZZ, STANDARD }
     DriveMode driveMode = DriveMode.FIELD_CENTRIC; // Default drive mode
     
     private static final double BASE_SPEED_LIMIT = 1;
@@ -46,6 +46,7 @@ public class Drive {
     private boolean selectPressedLast = false;
     private boolean rbPressedLast = false;
     private boolean resetYawOnRightBumper = true;
+    private boolean singleControllerAutoAimEnabled;
     private final boolean chassisAutoAimEnabled;
     private final double manualRotationScale;
     private final boolean smoothManualDrive;
@@ -54,54 +55,41 @@ public class Drive {
     private double smoothForward;
     private double smoothRotate;
 
-    public Drive(HardwareMap hardwareMap, String driveSystem, boolean includeLimelight) {
+    public Drive(HardwareMap hardwareMap, RobotProfile profile, boolean includeLimelight) {
         // Biobuzz aims its turret independently; RT must leave chassis rotation under driver control.
-        chassisAutoAimEnabled = !driveSystem.equals("Biobuzz");
-        manualRotationScale = driveSystem.equals("Biobuzz") ? BIOBUZZ_ROTATION_SCALE : 1.0;
-        smoothManualDrive = driveSystem.equals("Biobuzz");
+        boolean biobuzz = profile == RobotProfile.BIOBUZZ;
+        chassisAutoAimEnabled = !biobuzz;
+        manualRotationScale = biobuzz ? BIOBUZZ_ROTATION_SCALE : 1.0;
+        smoothManualDrive = biobuzz;
         if (includeLimelight) {
             limelight = hardwareMap.get(Limelight3A.class, "Limelight");
         }
 
-        setupMotors(hardwareMap, driveSystem);
+        setupMotors(hardwareMap, profile);
 
-        setupImu(hardwareMap, driveSystem);
+        setupImu(hardwareMap, profile);
     }
 
-    public void setupMotors(HardwareMap hardwareMap, String driveSystem) {
+    private void setupMotors(HardwareMap hardwareMap, RobotProfile profile) {
         leftFrontMotor = hardwareMap.get(DcMotor.class, "LFM");
-        DcMotor.Direction leftFMD = DcMotor.Direction.REVERSE;
-        if (driveSystem.equals("Biobuzz")) {
-            leftFMD = DcMotor.Direction.REVERSE;
-        }
-        leftFrontMotor.setDirection(leftFMD);
+        leftFrontMotor.setDirection(DcMotor.Direction.REVERSE);
         leftFrontMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
-        DcMotor.Direction leftBMD = DcMotor.Direction.FORWARD;
-        if (driveSystem.equals("Biobuzz")) {
-            leftBMD = DcMotor.Direction.FORWARD;
-        }
         leftBackMotor  = hardwareMap.get(DcMotor.class, "LBM");
-        leftBackMotor.setDirection(leftBMD);
+        leftBackMotor.setDirection(DcMotor.Direction.FORWARD);
         leftBackMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
-        DcMotor.Direction rightFMD = DcMotor.Direction.FORWARD;
-        if (driveSystem.equals("Biobuzz")) {
-            rightFMD = DcMotor.Direction.REVERSE;
-        }
         rightFrontMotor = hardwareMap.get(DcMotor.class, "RFM");
-        rightFrontMotor.setDirection(rightFMD);
+        rightFrontMotor.setDirection(profile == RobotProfile.BIOBUZZ
+                ? DcMotor.Direction.REVERSE : DcMotor.Direction.FORWARD);
         rightFrontMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
-        DcMotor.Direction rightBMD = DcMotor.Direction.FORWARD;
-        if (driveSystem.equals("Biobuzz")) {
-            rightBMD = DcMotor.Direction.REVERSE;
-        }
         rightBackMotor = hardwareMap.get(DcMotor.class, "RBM");
-        rightBackMotor.setDirection(rightBMD);
+        rightBackMotor.setDirection(profile == RobotProfile.BIOBUZZ
+                ? DcMotor.Direction.REVERSE : DcMotor.Direction.FORWARD);
         rightBackMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
-        if (driveSystem.equals("Biobuzz")) {
+        if (profile == RobotProfile.BIOBUZZ) {
             leftFrontMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
             leftBackMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
             rightFrontMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
@@ -109,10 +97,10 @@ public class Drive {
         }
     }
 
-    public void setupImu(HardwareMap hardwareMap, String driveSystem) {
+    private void setupImu(HardwareMap hardwareMap, RobotProfile profile) {
         imu = hardwareMap.get(IMU.class, "imu");
         RevHubOrientationOnRobot orientationOnRobot;
-        if (driveSystem.equals("Biobuzz")) {
+        if (profile == RobotProfile.BIOBUZZ) {
             orientationOnRobot = new RevHubOrientationOnRobot(
                     RevHubOrientationOnRobot.LogoFacingDirection.UP,
                     RevHubOrientationOnRobot.UsbFacingDirection.LEFT
@@ -200,7 +188,8 @@ public class Drive {
 
         strafe = strafe * STRAFE_CORRECTION; // Counteract imperfect strafing
 
-        boolean oneController = gamepad.right_trigger > CtrlAltDelOpMode.TRIGGER_DEADZONE && DecodeTeleOp.oneController;
+        boolean oneController = gamepad.right_trigger > CtrlAltDelOpMode.TRIGGER_DEADZONE
+                && singleControllerAutoAimEnabled;
         if (chassisAutoAimEnabled
                 && (gamepad2.right_trigger > CtrlAltDelOpMode.TRIGGER_DEADZONE || oneController)) {
             rotate = getAutoRotate(rotate);
@@ -226,12 +215,8 @@ public class Drive {
         }
 
         LLResult result = limelight.getLatestResult();
-        //double rotate = AUTO_AIM_SPEED;
         if (result != null && result.isValid()) {
             double tx = result.getTx();
-            //if (teamTagId == 20) { // Blue
-            //    tx = tx - 8;
-            //}
 
             if (Math.abs(tx) < 1.0) {
                 return 0;
@@ -257,8 +242,6 @@ public class Drive {
         LBM = Range.clip(LBM / max, -speedLimit, speedLimit);
         RBM = Range.clip(RBM / max, -speedLimit, speedLimit);
 
-        // Do not allow the wheels to move unless we are on the ground or while we kill the motors
-        //if (leftViperSlideMotor.getCurrentPosition() > 30 || rightViperSlideMotor.getCurrentPosition() > 30 || CtrlAltDelOpMode.killMotors) {
         if (CtrlAltDelOpMode.killMotors) {
             LFM = 0;
             RFM = 0;
@@ -288,6 +271,10 @@ public class Drive {
         resetYawOnRightBumper = enabled;
     }
 
+    public void setSingleControllerAutoAimEnabled(boolean enabled) {
+        singleControllerAutoAimEnabled = enabled;
+    }
+
     public void addTelemetry(Telemetry telemetry) {
         double headingDeg = imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
         telemetry.addData("Heading", "%.1f deg", headingDeg);
@@ -311,7 +298,4 @@ public class Drive {
         return new double[] { LFM, RFM, LBM, RBM };
     }
 
-//    public double getBatteryVoltage() {
-//        return voltageSensor.getVoltage();
-//    }
 }

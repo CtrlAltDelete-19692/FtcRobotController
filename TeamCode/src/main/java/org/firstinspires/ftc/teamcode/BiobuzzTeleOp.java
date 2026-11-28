@@ -13,13 +13,11 @@ import java.util.List;
 public class BiobuzzTeleOp extends CtrlAltDelOpMode {
     public Drive drive;
     private RotatingLauncher pollenLauncher;
-    private RotatingLauncher nectarLauncher;
     private Intake intake;
     private BallPurge ballPurge;
     private FlowerPuller flowerPuller;
     private Limelight3A limelight;
-    private boolean isBlue = true;
-    private int selectedPipeline = -1;
+    private BiobuzzTeamSelection team;
     private boolean lastYawResetButton;
     private boolean lastDebugButton;
     private boolean debugTelemetry;
@@ -28,31 +26,31 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
     public void runOpMode() {
         killMotors = false;
         // Initialize Subsystems
-        drive = new Drive(hardwareMap, "Biobuzz", false);
+        drive = new Drive(hardwareMap, Drive.RobotProfile.BIOBUZZ, false);
         drive.setResetYawOnRightBumper(false);
         intake = new Intake(hardwareMap, DcMotor.Direction.FORWARD);
         intake.enableJamRecovery();
         flowerPuller = new FlowerPuller(hardwareMap);
-        pollenLauncher = new RotatingLauncher(hardwareMap, "Pollen", null, null);
+        pollenLauncher = new RotatingLauncher(hardwareMap, "Pollen");
         pollenLauncher.setFeedIntake(intake);
         ballPurge = new BallPurge(intake, pollenLauncher);
-        //nectarLauncher = new RotatingLauncher(hardwareMap, "Nectar", null, null);
         limelight = hardwareMap.tryGet(Limelight3A.class, "Limelight");
         if (limelight != null) {
             limelight.setPollRateHz(100);
             limelight.start();
         }
-        changeTeam(true);
+        team = new BiobuzzTeamSelection(limelight, telemetry);
+        team.select(true);
 
         TelemetryDashboard dashboard = new TelemetryDashboard(telemetry);
 
         while (!isStarted() && !isStopRequested()) {
-            if (gamepad1.x) changeTeam(true);
-            if (gamepad1.b) changeTeam(false);
+            if (gamepad1.x) team.select(true);
+            if (gamepad1.b) team.select(false);
             intake.updateEnabled(gamepad1, gamepad2);
             updateDebugTelemetry();
 
-            dashboard.addStatus(isBlue, drive.getDriveMode());
+            dashboard.addStatus(team.isBlue(), drive.getDriveMode());
             telemetry.addLine("Flywheel speed: gamepad 2 LB / RB");
             if (debugTelemetry) {
                 telemetry.addData("Intake (Y)", intake.isEnabled() ? "ON" : "OFF");
@@ -84,12 +82,11 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
             intake.setManualReverse(gamepad1.x || gamepad2.x);
             intake.update(gamepad1, gamepad2);
             flowerPuller.update(gamepad1);
-            pollenLauncher.update(gamepad1, gamepad2, result, isBlue);
+            pollenLauncher.update(gamepad1, gamepad2, result, team.isBlue());
             intake.updateHopperStall();
-            //nectarLauncher.update(gamepad1);
 
             // Telemetry
-            dashboard.addStatus(isBlue, drive.getDriveMode());
+            dashboard.addStatus(team.isBlue(), drive.getDriveMode());
             addCompetitionTelemetry();
             if (debugTelemetry) {
                 telemetry.addLine();
@@ -137,18 +134,6 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
         lastDebugButton = debugButton;
     }
 
-    private void changeTeam(boolean blue) {
-        int pipeline = blue ? 2 : 1;
-        if (selectedPipeline == pipeline) return;
-
-        isBlue = blue;
-        selectedPipeline = pipeline;
-        telemetry.speak(blue ? "Blue team" : "Red team");
-        if (limelight != null) {
-            limelight.pipelineSwitch(pipeline);
-        }
-    }
-
     private void addLimelightTelemetry(LLResult result) {
         if (limelight == null) {
             telemetry.addLine("Not configured");
@@ -168,12 +153,13 @@ public class BiobuzzTeleOp extends CtrlAltDelOpMode {
 
         telemetry.addData("Selected tx", "%.1f deg", result.getTx());
         for (LLResultTypes.FiducialResult tag : tags) {
+            String rejection = pollenLauncher.getTagRejectionReason(tag, team.isBlue());
             telemetry.addData("Tag " + tag.getFiducialId() + " tx", "%.1f deg",
                     tag.getTargetXDegrees());
-            telemetry.addData("Tag " + tag.getFiducialId() + " height", "%.1f in  %s (must be > %.0f)",
+            telemetry.addData("Tag " + tag.getFiducialId() + " height", "%.1f in (must be > %.0f)",
                     pollenLauncher.getTagHeightInches(tag),
-                    pollenLauncher.isTagAboveMinimumHeight(tag) ? "Accepted" : "FILTERED OUT",
                     RotatingLauncher.MIN_TARGET_HEIGHT_INCHES);
+            telemetry.addData("Tag " + tag.getFiducialId() + " tracking", rejection == null ? "Eligible" : rejection);
         }
     }
 }
